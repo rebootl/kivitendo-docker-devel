@@ -4,10 +4,9 @@ docker development environment for kivitendo-erp incl. postgres database.
 
     $ cd kivi/
     $ git clone https://github.com/kivitendo/kivitendo-erp.git
-    $ cd kivitendo-erp/
-    $ mkdir webdav
 
-The entrypoint script chowns the user to www-data and sets the group to rw
+The entrypoint script creates the webdav directory.
+Additionally it chowns the user to www-data and sets the group to rw
 on first container startup.
 
 ## docker-compose

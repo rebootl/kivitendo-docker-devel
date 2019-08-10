@@ -8,6 +8,7 @@ STARTED_LOCK_FILE="/started.lock"
 if [ ! -e $STARTED_LOCK_FILE ]; then
   echo "-- First container startup --"
   cd /var/www/kivitendo-erp
+  mkdir webdav
   chown -R www-data users spool webdav
   chmod -R 775 users spool webdav
   chown www-data templates
