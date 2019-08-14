@@ -41,4 +41,6 @@ VOLUME ["/var/log/apache2"]
 ADD docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
+ADD kivitendo.conf /kivitendo.conf
+
 CMD ["/docker-entrypoint.sh"]
