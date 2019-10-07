@@ -7,10 +7,12 @@ services:
     depends_on:
       - "db"
     ports:
-      - "8080:80"
+      - "50100:80"
     volumes:
       - "./kivi/kivitendo-erp:/var/www/kivitendo-erp"
+    restart: always
   db:
     build: ./pgsql-kivi
     image: mypgsql
     container_name: mypgsql-test
+    restart: always
