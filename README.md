@@ -10,6 +10,15 @@ The entrypoint script creates the webdav directory.
 Additionally it chowns the user to www-data and sets the group to rw
 on first container startup.
 
+## Database setup
+
+Optionally place database dumps under `pgsql-kivi/docker-entrypoint-initdb.d`.
+
+Tip: To create a dump from a running container use something like:
+
+    $ docker exec mypgsql-test /usr/bin/pg_dump \
+        -U kivitendo --create kivitendo > backup.sql
+
 ## docker-compose
 
     $ docker-compose build

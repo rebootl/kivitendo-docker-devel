@@ -16,3 +16,15 @@ services:
     image: mypgsql
     container_name: mypgsql-test
     restart: always
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "50102:8080"
+#  pgadmin:
+#    image: dpage/pgadmin4
+#    environment:
+#      - "PGADMIN_DEFAULT_EMAIL=user@example.com"
+#      - "PGADMIN_DEFAULT_PASSWORD=1234"
+#    ports:
+#      - "50105:80"
