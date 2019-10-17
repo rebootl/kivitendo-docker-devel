@@ -1,20 +1,20 @@
 version: '3'
 services:
-  webapp:
-    build: ./kivi
+  web:
+    build: ./web
     image: mykivi
-    container_name: mykivi-test
+    container_name: mykivi-run
     depends_on:
       - "db"
     ports:
       - "50100:80"
     volumes:
-      - "./kivi/kivitendo-erp:/var/www/kivitendo-erp"
+      - "./web/kivitendo-erp:/var/www/kivitendo-erp"
     restart: always
   db:
-    build: ./pgsql-kivi
+    build: ./db
     image: mypgsql
-    container_name: mypgsql-test
+    container_name: mypgsql-run
     restart: always
     environment:
       - "POSTGRES_USER=kivitendo"
@@ -32,4 +32,3 @@ services:
     environment:
       - "PGADMIN_DEFAULT_EMAIL=user@example.com"
       - "PGADMIN_DEFAULT_PASSWORD=1234"
-
