@@ -41,4 +41,5 @@ VOLUME ["/var/log/apache2"]
 ADD docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
-CMD ["/docker-entrypoint.sh"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["apache2 -D FOREGROUND"]
