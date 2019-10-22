@@ -12,7 +12,6 @@ if [ ! -e $STARTED_LOCK_FILE ]; then
   chmod -R g+w users spool webdav
   chown www-data templates
   chmod g+w templates
-  cp /kivitendo.conf /var/www/kivitendo-erp/config/
 
   touch $STARTED_LOCK_FILE
 else
