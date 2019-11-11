@@ -1,7 +1,5 @@
 #
-
 FROM debian:buster
-
 
 RUN apt update && apt upgrade -y && apt -y install apache2 \
   libarchive-zip-perl libclone-perl \
@@ -42,4 +40,4 @@ ADD docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["apache2 -D FOREGROUND"]
+CMD ["apache2", "-D", "FOREGROUND"]
