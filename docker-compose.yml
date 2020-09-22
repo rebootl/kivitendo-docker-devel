@@ -2,33 +2,28 @@ version: '3'
 services:
   web:
     build: ./web
-    image: mykivi
-    container_name: mykivi-run
+    image: kivi
+    container_name: kivi
     depends_on:
       - "db"
     ports:
-      - "50100:80"
+      - "50110:80"
     volumes:
       - "./web/kivitendo-erp:/var/www/kivitendo-erp"
-    restart: always
+    restart: unless-stopped
   db:
     build: ./db
-    image: mypgsql
-    container_name: mypgsql-run
-    restart: always
+    image: pgsql-kivi
+    container_name: pgsql-kivi
+    restart: unless-stopped
     environment:
       - "POSTGRES_USER=kivitendo"
       - "POSTGRES_PASSWORD=mypass123"
-  adminer:
-    image: adminer
-    restart: always
-    ports:
-      - "50102:8080"
   pgadmin:
     image: dpage/pgadmin4
-    restart: always
+    restart: unless-stopped
     ports:
-      - "50105:80"
+      - "50111:80"
     environment:
       - "PGADMIN_DEFAULT_EMAIL=user@example.com"
       - "PGADMIN_DEFAULT_PASSWORD=1234"
