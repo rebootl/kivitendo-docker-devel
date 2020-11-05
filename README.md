@@ -38,6 +38,12 @@ or
 
     $ docker-compose up --build -d
 
+http://localhost:50110/kivitendo-erp/
+
+Login (example db): dduck
+Password: 1234
+
+Admin-Login (default): admin123
 
 ## Development Notes
 
