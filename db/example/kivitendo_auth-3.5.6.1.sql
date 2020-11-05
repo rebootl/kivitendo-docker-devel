@@ -2,8 +2,8 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 11.5 (Debian 11.5-3.pgdg90+1)
--- Dumped by pg_dump version 11.5 (Debian 11.5-3.pgdg90+1)
+-- Dumped from database version 11.9 (Debian 11.9-1.pgdg90+1)
+-- Dumped by pg_dump version 11.9 (Debian 11.9-1.pgdg90+1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -20,7 +20,7 @@ SET row_security = off;
 -- Name: kivitendo_auth; Type: DATABASE; Schema: -; Owner: kivitendo
 --
 
-CREATE DATABASE kivitendo_auth WITH TEMPLATE = template0 ENCODING = 'UTF8' LC_COLLATE = 'en_US.utf8' LC_CTYPE = 'en_US.utf8';
+CREATE DATABASE kivitendo_auth WITH TEMPLATE = template0 ENCODING = 'UTF8' LC_COLLATE = 'de_CH.utf8' LC_CTYPE = 'de_CH.utf8';
 
 
 ALTER DATABASE kivitendo_auth OWNER TO kivitendo;
@@ -305,7 +305,7 @@ ALTER TABLE ONLY auth.master_rights ALTER COLUMN id SET DEFAULT nextval('auth.ma
 --
 
 COPY auth.clients (id, name, dbhost, dbport, dbname, dbuser, dbpasswd, is_default, task_server_user_id) FROM stdin;
-1	mycompany2	mypgsql-test	5432	mycompany2	kivitendo	mypass123	t	\N
+1	myrealcompany	db	5432	myrealcompany	kivitendo	mypass123	t	1
 \.
 
 
@@ -345,8 +345,8 @@ COPY auth.group_rights (group_id, "right", granted) FROM stdin;
 1	customer_vendor_all_edit	t
 1	part_service_assembly_edit	t
 1	part_service_assembly_details	t
-1	assembly_edit	t
 1	shop_part_edit	t
+1	assembly_edit	t
 1	project_edit	t
 1	project_edit_view_invoices_permission	t
 1	show_extra_record_tab_customer	t
@@ -360,7 +360,7 @@ COPY auth.group_rights (group_id, "right", granted) FROM stdin;
 1	dunning_edit	t
 1	sales_letter_edit	t
 1	sales_all_edit	t
-1	edit_prices	t
+1	sales_edit_prices	t
 1	show_ar_transactions	t
 1	delivery_plan	t
 1	delivery_value_report	t
@@ -370,7 +370,11 @@ COPY auth.group_rights (group_id, "right", granted) FROM stdin;
 1	purchase_order_edit	t
 1	purchase_delivery_order_edit	t
 1	vendor_invoice_edit	t
+1	purchase_letter_edit	t
+1	purchase_all_edit	t
+1	purchase_edit_prices	t
 1	show_ap_transactions	t
+1	purchase_letter_report	t
 1	import_ap	t
 1	warehouse_contents	t
 1	warehouse_management	t
@@ -394,9 +398,8 @@ COPY auth.group_rights (group_id, "right", granted) FROM stdin;
 1	productivity	t
 1	display_admin_link	t
 1	record_links	t
-1	purchase_letter_edit	t
-1	purchase_letter_report	t
 1	all_drafts_edit	t
+1	edit_prices	t
 \.
 
 
@@ -420,7 +423,6 @@ COPY auth.master_rights (id, "position", name, description, category) FROM stdin
 13	1300	dunning_edit	Create and edit dunnings	f
 14	1400	sales_letter_edit	Edit sales letters	f
 15	1500	sales_all_edit	View/edit all employees sales documents	f
-16	1600	edit_prices	Edit prices and discount (if not used, textfield is ONLY set readonly)	f
 17	1700	show_ar_transactions	Show AR transactions as part of AR invoice report	f
 18	1800	delivery_plan	Show delivery plan	f
 19	1900	delivery_value_report	Show delivery value report	f
@@ -445,23 +447,24 @@ COPY auth.master_rights (id, "position", name, description, category) FROM stdin
 39	3900	batch_printing	Batch Printing	f
 40	4000	configuration	Configuration	t
 41	4100	config	Change kivitendo installation settings (most entries in the 'System' menu)	f
-43	4300	others	Others	t
-45	4500	productivity	Productivity	f
-31	3100	general_ledger	AP/AR Aging & Journal	f
 42	4200	admin	Client administration: configuration, editing templates, task server control, background jobs (remaining entries in the 'System' menu)	f
+43	4300	others	Others	t
 44	4400	email_bcc	May set the BCC field when sending emails	f
+31	3100	general_ledger	AP/AR Aging & Journal	f
+16	1600	sales_edit_prices	Edit prices and discount (if not used, textfield is ONLY set readonly)	f
+45	4500	productivity	Productivity	f
 46	4600	display_admin_link	Show administration link	f
-47	255000	purchase_letter_edit	Edit purchase letters	f
-48	265000	purchase_letter_report	Show purchase letters report	f
-49	500000	all_drafts_edit	Edit all drafts	f
-50	4450	email_journal	E-Mail-Journal	f
-51	4480	email_employee_readall	Read all employee e-mails	f
-52	2050	import_ar	Import AR from Scanner or Email	f
+47	5000	all_drafts_edit	Edit all drafts	f
+48	4450	email_journal	E-Mail-Journal	f
+49	4480	email_employee_readall	Read all employee e-mails	f
+50	2050	import_ar	Import AR from Scanner or Email	f
+52	2550	purchase_letter_edit	Edit purchase letters	f
+53	2650	purchase_letter_report	Show purchase letters report	f
 54	4750	record_links	Linked Records	f
 55	3130	gl_transactions	General Ledger Transaction	f
 56	3150	ar_transactions	AR Transactions	f
 57	3170	ap_transactions	AP Transactions	f
-53	2680	import_ap	Import AP from Scanner or Email	f
+51	2680	import_ap	Import AP from Scanner or Email	f
 58	550	assembly_edit	Always edit assembly items (user can change/delete items even if assemblies are already produced)	f
 59	4275	custom_data_export_designer	Custom data export	f
 60	550	shop_part_edit	Create and edit shopparts	f
@@ -470,6 +473,8 @@ COPY auth.master_rights (id, "position", name, description, category) FROM stdin
 63	610	show_extra_record_tab_customer	Show record tab in customer	f
 64	611	show_extra_record_tab_vendor	Show record tab in vendor	f
 65	602	project_edit_view_invoices_permission	Projects: edit the list of employees allowed to view invoices	f
+66	2560	purchase_all_edit	View/edit all employees purchase documents	f
+67	2570	purchase_edit_prices	Edit prices and discount (if not used, textfield is ONLY set readonly)	f
 \.
 
 
@@ -478,52 +483,58 @@ COPY auth.master_rights (id, "position", name, description, category) FROM stdin
 --
 
 COPY auth.schema_info (tag, login, itime) FROM stdin;
-add_api_token	admin	2019-10-15 11:35:50.630594
-add_batch_printing_to_full_access	admin	2019-10-15 11:35:50.646001
-auth_schema_normalization_1	admin	2019-10-15 11:35:50.658486
-password_hashing	admin	2019-10-15 11:35:50.741624
-remove_menustyle_v4	admin	2019-10-15 11:35:50.750032
-remove_menustyle_xml	admin	2019-10-15 11:35:50.759044
-session_content_auto_restore	admin	2019-10-15 11:35:50.767311
-release_3_0_0	admin	2019-10-15 11:35:50.775758
-clients	admin	2019-10-15 11:35:50.78688
-clients_webdav	admin	2019-10-15 11:35:51.003997
-foreign_key_constraints_on_delete	admin	2019-10-15 11:35:51.016707
-release_3_2_0	admin	2019-10-15 11:35:51.084953
-add_master_rights	admin	2019-10-15 11:35:51.092599
-bank_transaction_rights	admin	2019-10-15 11:35:51.207197
-delivery_plan_rights	admin	2019-10-15 11:35:51.215922
-delivery_process_value	admin	2019-10-15 11:35:51.225229
-details_and_report_of_parts	admin	2019-10-15 11:35:51.233861
-productivity_rights	admin	2019-10-15 11:35:51.242003
-requirement_spec_rights	admin	2019-10-15 11:35:51.249523
-rights_for_showing_ar_and_ap_transactions	admin	2019-10-15 11:35:51.25757
-sales_letter_rights	admin	2019-10-15 11:35:51.265788
-purchase_letter_rights	admin	2019-10-15 11:35:51.273355
-release_3_3_0	admin	2019-10-15 11:35:51.287285
-client_task_server	admin	2019-10-15 11:35:51.295329
-remove_insecurely_hashed_passwords	admin	2019-10-15 11:35:51.305093
-session_content_primary_key	admin	2019-10-15 11:35:51.313126
-release_3_4_0	admin	2019-10-15 11:35:51.344823
-all_drafts_edit	admin	2019-10-15 11:35:51.353184
-master_rights_position_gaps	admin	2019-10-15 11:35:51.362565
-mail_journal_rights	admin	2019-10-15 11:35:51.371008
-other_file_sources	admin	2019-10-15 11:35:51.384859
-record_links_rights	admin	2019-10-15 11:35:51.392747
-split_transaction_rights	admin	2019-10-15 11:35:51.4008
-other_file_sources2	admin	2019-10-15 11:35:51.410324
-rename_general_ledger_rights	admin	2019-10-15 11:35:51.418365
-release_3_5_0	admin	2019-10-15 11:35:51.426429
-assembly_edit_right	admin	2019-10-15 11:35:51.434356
-custom_data_export_rights	admin	2019-10-15 11:35:51.442402
-webshop_api_rights	admin	2019-10-15 11:35:51.450624
-webshop_api_rights_2	admin	2019-10-15 11:35:51.460304
-release_3_5_1	admin	2019-10-15 11:35:51.468123
-release_3_5_2	admin	2019-10-15 11:35:51.475602
-customer_vendor_record_extra_tab_rights	admin	2019-10-15 11:35:51.484131
-release_3_5_3	admin	2019-10-15 11:35:51.491881
-rights_for_viewing_project_specific_invoices	admin	2019-10-15 11:35:51.499638
-release_3_5_4	admin	2019-10-15 11:35:51.507643
+add_api_token	admin	2020-11-05 15:41:03.590685
+add_batch_printing_to_full_access	admin	2020-11-05 15:41:03.593487
+auth_schema_normalization_1	admin	2020-11-05 15:41:03.597243
+password_hashing	admin	2020-11-05 15:41:03.608721
+remove_menustyle_v4	admin	2020-11-05 15:41:03.611971
+remove_menustyle_xml	admin	2020-11-05 15:41:03.615075
+session_content_auto_restore	admin	2020-11-05 15:41:03.617844
+release_3_0_0	admin	2020-11-05 15:41:03.620864
+clients	admin	2020-11-05 15:41:03.627579
+clients_webdav	admin	2020-11-05 15:41:03.659015
+foreign_key_constraints_on_delete	admin	2020-11-05 15:41:03.663031
+release_3_2_0	admin	2020-11-05 15:41:03.700664
+add_master_rights	admin	2020-11-05 15:41:03.703962
+bank_transaction_rights	admin	2020-11-05 15:41:03.73941
+delivery_plan_rights	admin	2020-11-05 15:41:03.743399
+delivery_process_value	admin	2020-11-05 15:41:03.747146
+details_and_report_of_parts	admin	2020-11-05 15:41:03.75003
+productivity_rights	admin	2020-11-05 15:41:03.752273
+requirement_spec_rights	admin	2020-11-05 15:41:03.754532
+rights_for_showing_ar_and_ap_transactions	admin	2020-11-05 15:41:03.756765
+sales_letter_rights	admin	2020-11-05 15:41:03.758971
+release_3_3_0	admin	2020-11-05 15:41:03.760905
+client_task_server	admin	2020-11-05 15:41:03.762612
+remove_insecurely_hashed_passwords	admin	2020-11-05 15:41:03.765514
+session_content_primary_key	admin	2020-11-05 15:41:03.767549
+release_3_4_0	admin	2020-11-05 15:41:03.771776
+master_rights_position_gaps	admin	2020-11-05 15:41:03.773475
+all_drafts_edit	admin	2020-11-05 15:41:03.775888
+mail_journal_rights	admin	2020-11-05 15:41:03.778195
+other_file_sources	admin	2020-11-05 15:41:03.780836
+purchase_letter_rights	admin	2020-11-05 15:41:03.783268
+record_links_rights	admin	2020-11-05 15:41:03.785896
+split_transaction_rights	admin	2020-11-05 15:41:03.788125
+other_file_sources2	admin	2020-11-05 15:41:03.790837
+rename_general_ledger_rights	admin	2020-11-05 15:41:03.792735
+release_3_5_0	admin	2020-11-05 15:41:03.794469
+assembly_edit_right	admin	2020-11-05 15:41:03.797324
+custom_data_export_rights	admin	2020-11-05 15:41:03.800933
+webshop_api_rights	admin	2020-11-05 15:41:03.804514
+webshop_api_rights_2	admin	2020-11-05 15:41:03.808269
+release_3_5_1	admin	2020-11-05 15:41:03.811409
+release_3_5_2	admin	2020-11-05 15:41:03.813198
+customer_vendor_record_extra_tab_rights	admin	2020-11-05 15:41:03.815393
+release_3_5_3	admin	2020-11-05 15:41:03.817547
+rights_for_viewing_project_specific_invoices	admin	2020-11-05 15:41:03.819613
+release_3_5_4	admin	2020-11-05 15:41:03.821812
+right_purchase_all_edit	admin	2020-11-05 15:41:03.823388
+rights_sales_purchase_edit_prices	admin	2020-11-05 15:41:03.82663
+master_rights_positions_fix	admin	2020-11-05 15:41:03.829912
+release_3_5_5	admin	2020-11-05 15:41:03.832738
+release_3_5_6	admin	2020-11-05 15:41:03.83449
+release_3_5_6_1	admin	2020-11-05 15:41:03.83623
 \.
 
 
@@ -532,8 +543,7 @@ release_3_5_4	admin	2019-10-15 11:35:51.507643
 --
 
 COPY auth.session (id, ip_address, mtime, api_token) FROM stdin;
-90621ff66ea34b605f122c08854778b8	192.168.10.30	2019-10-15 12:05:25.44915	9c050c54873618e5c8fd2e7cddc8cbc1
-fcb609d614cd40881fa2647d5ce85cb1	192.168.10.11	2019-10-15 11:37:13.777452	721565b132424cce2c0511bbb1e26623
+36240a74a744cf1091d8046cc19e5a7a	172.22.0.1	2020-11-05 16:04:03.692509	de75dec8ccbfb311102b91370e842d90
 \.
 
 
@@ -542,18 +552,15 @@ fcb609d614cd40881fa2647d5ce85cb1	192.168.10.11	2019-10-15 11:37:13.777452	721565
 --
 
 COPY auth.session_content (session_id, sess_key, sess_value, auto_restore) FROM stdin;
-fcb609d614cd40881fa2647d5ce85cb1	admin_password	--- admin123\n	\N
-fcb609d614cd40881fa2647d5ce85cb1	session_auth_status_root	--- 0\n	\N
-fcb609d614cd40881fa2647d5ce85cb1	database_superuser_password	--- mypass123\n	\N
-fcb609d614cd40881fa2647d5ce85cb1	database_superuser_username	--- kivitendo\n	\N
-90621ff66ea34b605f122c08854778b8	session_auth_status_root	--- 0\n	\N
-90621ff66ea34b605f122c08854778b8	session_auth_status_user	--- 0\n	\N
-90621ff66ea34b605f122c08854778b8	login	--- cem\n	\N
-90621ff66ea34b605f122c08854778b8	client_id	--- 1\n	\N
-90621ff66ea34b605f122c08854778b8	23b59b320ba2032d2df10595d79b6ecf	---\naction: add\nshow_details: ''\n	\N
-90621ff66ea34b605f122c08854778b8	4c1b247c555f0175a8e4c26418f81d64	---\nAR: 1100--Forderungen aus Lieferungen und Leistungen\nAR_paid_1: 1000--Kasse\nNOTFORPURCHASE: 2\nNOTFORSALE: 1\nacc_trans_id_1: ''\naction: update\nactive_discount_source_1: ''\nactive_price_source_1: ''\nbasefactor_1: ''\nbin_1: ''\nbo_1: ''\nbusiness: ''\ncallback: is.pl?action=add&type=invoice\nclient_id: 1\nclosedto: ''\nconvert_from_ar_ids: ''\nconvert_from_do_ids: ''\nconvert_from_oe_ids: ''\nconverted_from_delivery_order_items_id_1: ''\nconverted_from_invoice_id_1: ''\nconverted_from_orderitems_id_1: ''\ncreditlimit: 0.00000\ncreditremaining: 0\ncurrency: CHF\ncursor_fokus: ''\ncusordnumber: ''\ncusordnumber_1: ''\ncustomer_discount: 0\ncustomer_id: 410\ncustomer_pricegroup_id: ''\ndatepaid_1: 15.10.2019\ndelivery_term_id: ''\ndeliverydate: ''\ndepartment_id: ''\ndescription_1: ''\ndiscount: ''\ndiscount_1: 0\ndonumber: ''\ndonumber_1: ''\ndraft_description: ''\ndraft_id: ''\nduedate: 15.10.2019\ndunning_amount: ''\ndunning_description: ''\nemailed: ''\nemployee_id: 409\nexchangerate: 1\nexpense_accno_1: ''\nfollow_up_rowcount: 1\nfollow_up_trans_id_1: ''\nfollow_up_trans_info_1: ' (Orbital)'\nfollow_up_trans_type_1: sales_invoice\nforex: 1\nformat: pdf\nformname: invoice\nfxgain_accno: 6952\nfxloss_accno: 6942\ngldate: ''\ngldate_1: ''\nglobalproject_id: ''\nid: ''\nid_1: 0\nincome_accno_1: ''\nintnotes: ''\ninvdate: 15.10.2019\ninventory_accno_1: ''\ninvnumber: ''\ninvoice_id: ''\ninvoice_id_1: ''\nis_wrong_pclass: 0\nlanguage_id: ''\nlastcost_1: '0,00'\nlastmtime: ''\nlistprice_1: ''\nlocked: ''\nlongdescription_1: ''\nmarge_absolut_1: '0,00'\nmarge_percent: ''\nmarge_percent_1: '0,00'\nmarge_price_factor_1: ''\nmarge_total: 0\nmax_dunning_level: ''\nmedia: screen\nmemo_1: ''\nnotes: ''\noldinvtotal: 0\noldtotalpaid: 0\norddate: ''\nordnumber: ''\nordnumber_1: ''\npaid_1: ''\npaidaccounts: 1\npart_type_1: ''\npartnotes_1: ''\npartnumber_1: d\npartsgroup_1: ''\npayment_id: ''\nprevious_customer_id: 410\nprice_factor_id_1: ''\nprice_new_1: 0\nprice_old_1: 0\nprinted: ''\nproject_id_1: ''\nqty_1: '0,00'\nqueued: ''\nquodate: ''\nquonumber: ''\nreqdate_1: ''\nrndgain_accno: 6953\nrndloss_accno: 6943\nrowcount: 1\nrunningnumber_1: 1\nsalesman_id: 409\nscript: is.pl\nselectAR: "<option selected>1100--Forderungen aus Lieferungen und Leistungen</option>\\r\\n<option>1140--Vorschüsse, kurzfristige Darlehen</option>\\r\\n"\nselectAR_paid: "<option>1000--Kasse</option>\\r\\n<option>1020--Postfinance oder Bank1</option>\\r\\n<option>1021--Bank2</option>\\r\\n<option>2030--Anzahlungen von Kundinnen und Kunden</option>\\r\\n<option>2100--Bankverbindlichkeiten</option>\\r\\n<option>3800--Skonti</option>\\r\\n<option>3801--Rabatte, Preisnachlässe</option>\\r\\n<option>3805--Verluste aus Forderungen</option>\\r\\n<option>3809--MWST - nur Saldosteuersatz</option>\\r\\n"\nsellprice_1: '0,00'\nserialnumber_1: ''\nsession_auth_status_root: 0\nsession_auth_status_user: 0\nshipped: ''\nshippingpoint: ''\nshiptocity: ''\nshiptocontact: ''\nshiptocountry: ''\nshiptocp_gender: m\nshiptodepartment_1: ''\nshiptodepartment_2: ''\nshiptoemail: ''\nshiptofax: ''\nshiptogln: ''\nshiptoname: ''\nshiptophone: ''\nshiptostreet: ''\nshiptozipcode: ''\nshipvia: ''\nshow_details: 0\nsource_1: ''\nstorno: ''\nstorno_id: ''\ntaxaccounts: ''\ntaxaccounts_1: ''\ntaxincluded: ''\ntaxzone_id: 4\ntitle: Rechnung erfassen\ntradediscount: ''\ntransaction_description: Support\ntransdate_1: ''\ntype: invoice\nunit_1: Stck\nunit_old_1: ''\nupdate: 1\nuseasnew: ''\nvc: customer\nwebdav: ''\nweight_1: 0\n	\N
-90621ff66ea34b605f122c08854778b8	80780b48d345c293a6a3fe7fee2eea96	---\nAR: 1100--Forderungen aus Lieferungen und Leistungen\nAR_paid_1: 1000--Kasse\nNOTFORPURCHASE: 2\nNOTFORSALE: 1\nacc_trans_id_1: ''\naction: update\nactive_discount_source_1: ''\nactive_price_source_1: ''\nbasefactor_1: ''\nbin_1: ''\nbo_1: ''\nbusiness: ''\ncallback: is.pl?action=add&type=invoice\nclient_id: 1\nclosedto: ''\nconvert_from_ar_ids: ''\nconvert_from_do_ids: ''\nconvert_from_oe_ids: ''\nconverted_from_delivery_order_items_id_1: ''\nconverted_from_invoice_id_1: ''\nconverted_from_orderitems_id_1: ''\ncreditlimit: 0.00000\ncreditremaining: 0\ncurrency: CHF\ncursor_fokus: ''\ncusordnumber: ''\ncusordnumber_1: ''\ncustomer_discount: 0\ncustomer_id: 410\ncustomer_pricegroup_id: ''\ndatepaid_1: 15.10.2019\ndelivery_term_id: ''\ndeliverydate: ''\ndepartment_id: ''\ndescription_1: ''\ndiscount: ''\ndiscount_1: 0\ndonumber: ''\ndonumber_1: ''\ndraft_description: ''\ndraft_id: ''\nduedate: 15.10.2019\ndunning_amount: ''\ndunning_description: ''\nemailed: ''\nemployee_id: 409\nexchangerate: 1\nexpense_accno_1: ''\nfollow_up_rowcount: 1\nfollow_up_trans_id_1: ''\nfollow_up_trans_info_1: ' (Orbital)'\nfollow_up_trans_type_1: sales_invoice\nforex: 1\nformat: pdf\nformname: invoice\nfxgain_accno: 6952\nfxloss_accno: 6942\ngldate: ''\ngldate_1: ''\nglobalproject_id: ''\nid: ''\nid_1: 413\nincome_accno_1: ''\nintnotes: ''\ninvdate: 15.10.2019\ninventory_accno_1: ''\ninvnumber: ''\ninvoice_id: ''\ninvoice_id_1: ''\nis_wrong_pclass: 0\nlanguage_id: ''\nlastcost_1: '0,00'\nlastmtime: ''\nlistprice_1: ''\nlocked: ''\nlongdescription_1: ''\nmarge_absolut_1: '0,00'\nmarge_percent: ''\nmarge_percent_1: '0,00'\nmarge_price_factor_1: ''\nmarge_total: 0\nmax_dunning_level: ''\nmedia: screen\nmemo_1: ''\nnotes: ''\noldinvtotal: 0\noldtotalpaid: 0\norddate: ''\nordnumber: ''\nordnumber_1: ''\npaid_1: ''\npaidaccounts: 1\npart_type_1: ''\npartnotes_1: ''\npartnumber_1: d\npartsgroup_1: ''\npayment_id: ''\nprevious_customer_id: 410\nprice_factor_id_1: ''\nprice_new_1: 0\nprice_old_1: 0\nprinted: ''\nproject_id_1: ''\nqty_1: '0,00'\nqueued: ''\nquodate: ''\nquonumber: ''\nreqdate_1: ''\nrndgain_accno: 6953\nrndloss_accno: 6943\nrowcount: 1\nrunningnumber_1: 1\nsalesman_id: 409\nscript: is.pl\nselectAR: "<option selected>1100--Forderungen aus Lieferungen und Leistungen</option>\\r\\n<option>1140--Vorschüsse, kurzfristige Darlehen</option>\\r\\n"\nselectAR_paid: "<option>1000--Kasse</option>\\r\\n<option>1020--Postfinance oder Bank1</option>\\r\\n<option>1021--Bank2</option>\\r\\n<option>2030--Anzahlungen von Kundinnen und Kunden</option>\\r\\n<option>2100--Bankverbindlichkeiten</option>\\r\\n<option>3800--Skonti</option>\\r\\n<option>3801--Rabatte, Preisnachlässe</option>\\r\\n<option>3805--Verluste aus Forderungen</option>\\r\\n<option>3809--MWST - nur Saldosteuersatz</option>\\r\\n"\nsellprice_1: '0,00'\nserialnumber_1: ''\nsession_auth_status_root: 0\nsession_auth_status_user: 0\nshipped: ''\nshippingpoint: ''\nshiptocity: ''\nshiptocontact: ''\nshiptocountry: ''\nshiptocp_gender: m\nshiptodepartment_1: ''\nshiptodepartment_2: ''\nshiptoemail: ''\nshiptofax: ''\nshiptogln: ''\nshiptoname: ''\nshiptophone: ''\nshiptostreet: ''\nshiptozipcode: ''\nshipvia: ''\nshow_details: 0\nsource_1: ''\nstorno: ''\nstorno_id: ''\ntaxaccounts: ''\ntaxaccounts_1: ''\ntaxincluded: ''\ntaxzone_id: 4\ntitle: Rechnung erfassen\ntradediscount: ''\ntransaction_description: Support\ntransdate_1: ''\ntype: invoice\nunit_1: Stck\nunit_old_1: ''\nupdate: 1\nuseasnew: ''\nvc: customer\nwebdav: ''\nweight_1: 0\n	\N
-90621ff66ea34b605f122c08854778b8	ca0a6eaae3a8b39ae302da6354ed0023	---\naction: edit\ncallback: is.pl?action=add&type=invoice\nedit: ''\nid: 2\nsaved_message: ''\n	\N
+36240a74a744cf1091d8046cc19e5a7a	session_auth_status_root	--- 0\n	\N
+36240a74a744cf1091d8046cc19e5a7a	admin_password	--- admin123\n	\N
+36240a74a744cf1091d8046cc19e5a7a	database_superuser_password	--- mypass123\n	\N
+36240a74a744cf1091d8046cc19e5a7a	database_superuser_username	--- kivitendo\n	\N
+36240a74a744cf1091d8046cc19e5a7a	login	--- dduck\n	\N
+36240a74a744cf1091d8046cc19e5a7a	session_auth_status_user	--- 0\n	\N
+36240a74a744cf1091d8046cc19e5a7a	client_id	--- 1\n	\N
+36240a74a744cf1091d8046cc19e5a7a	b66c118d7e4e764f665215563d405229	---\naction: edit\ncallback: ''\nedit: ''\nid: 1\nsaved_message: ''\n	\N
+36240a74a744cf1091d8046cc19e5a7a	fbe7e707f6c4c0ec1a7bb5ad37649ba3	---\naction: list_warehouses\nsaved_message: Lager gespeichert.\n	\N
 \.
 
 
@@ -562,7 +569,7 @@ fcb609d614cd40881fa2647d5ce85cb1	database_superuser_username	--- kivitendo\n	\N
 --
 
 COPY auth."user" (id, login, password) FROM stdin;
-1	cem	{PBKDF2}dcc4a23f61e9030cb8412f8f0e4ec98947:629347e9ab79d5a68c956e2e480ebb3691ec02397df4b7621915d2a1597d259e
+1	dduck	{PBKDF2}e0941d6082105e3bc101271bb4dbac1867:6da0fc91ff1ce8dfd99ea840e8d5acba1c411fc172d3561049145a81f28bdf12
 \.
 
 
@@ -571,31 +578,19 @@ COPY auth."user" (id, login, password) FROM stdin;
 --
 
 COPY auth.user_config (user_id, cfg_key, cfg_value) FROM stdin;
-1	favorites	\N
-1	numberformat	1.000,00
+1	menustyle	neu
+1	email	d.duck@myrealcompany.com
+1	numberformat	1'000.00
 1	phone_password	
-1	dateformat	dd.mm.yy
-1	phone_extension	
-1	item_multiselect	0
-1	template_format	pdf
-1	hide_cvar_search_options	0
-1	mandatory_departments	\N
-1	taxincluded_checked	0
-1	default_media	screen
-1	menustyle	v3
-1	stylesheet	kivitendo.css
 1	countrycode	de
+1	dateformat	dd.mm.yy
+1	signature	
+1	stylesheet	kivitendo.css
+1	mandatory_departments	0
 1	tel	
 1	fax	
-1	show_form_details	0
-1	copies	
-1	form_cvars_nr_cols	3
-1	timeformat	hh:mm
-1	default_printer_id	
-1	signature	 
-1	name	
-1	focus_position	new_description
-1	email	
+1	name	Donald Duck
+1	phone_extension	
 \.
 
 
@@ -626,7 +621,7 @@ SELECT pg_catalog.setval('auth.group_id_seq', 1, true);
 -- Name: master_rights_id_seq; Type: SEQUENCE SET; Schema: auth; Owner: kivitendo
 --
 
-SELECT pg_catalog.setval('auth.master_rights_id_seq', 65, true);
+SELECT pg_catalog.setval('auth.master_rights_id_seq', 67, true);
 
 
 --

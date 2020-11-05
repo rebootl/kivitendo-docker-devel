@@ -2,8 +2,8 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 11.5 (Debian 11.5-3.pgdg90+1)
--- Dumped by pg_dump version 11.5 (Debian 11.5-3.pgdg90+1)
+-- Dumped from database version 11.9 (Debian 11.9-1.pgdg90+1)
+-- Dumped by pg_dump version 11.9 (Debian 11.9-1.pgdg90+1)
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -17,15 +17,15 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- Name: mycompany2; Type: DATABASE; Schema: -; Owner: kivitendo
+-- Name: myrealcompany; Type: DATABASE; Schema: -; Owner: kivitendo
 --
 
-CREATE DATABASE mycompany2 WITH TEMPLATE = template0 ENCODING = 'UTF8' LC_COLLATE = 'en_US.utf8' LC_CTYPE = 'en_US.utf8';
+CREATE DATABASE myrealcompany WITH TEMPLATE = template0 ENCODING = 'UTF8' LC_COLLATE = 'de_CH.utf8' LC_CTYPE = 'de_CH.utf8';
 
 
-ALTER DATABASE mycompany2 OWNER TO kivitendo;
+ALTER DATABASE myrealcompany OWNER TO kivitendo;
 
-\connect mycompany2
+\connect myrealcompany
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -414,21 +414,6 @@ $$;
 ALTER FUNCTION public.clean_up_record_links_before_orderitems_delete() OWNER TO kivitendo;
 
 --
--- Name: comma_aggregate(text, text); Type: FUNCTION; Schema: public; Owner: kivitendo
---
-
-CREATE FUNCTION public.comma_aggregate(text, text) RETURNS text
-    LANGUAGE sql IMMUTABLE STRICT
-    AS $_$
-  SELECT CASE WHEN $1 <> '' THEN $1 || ', ' || $2 
-                              ELSE $2 
-         END; 
-$_$;
-
-
-ALTER FUNCTION public.comma_aggregate(text, text) OWNER TO kivitendo;
-
---
 -- Name: delete_custom_variables_trigger(); Type: FUNCTION; Schema: public; Owner: kivitendo
 --
 
@@ -454,6 +439,10 @@ CREATE FUNCTION public.delete_custom_variables_trigger() RETURNS trigger
 
     IF (TG_TABLE_NAME = 'project') THEN
       PERFORM delete_custom_variables_with_sub_module('Projects', '', old.id);
+    END IF;
+
+    IF (TG_TABLE_NAME = 'shipto') THEN
+      PERFORM delete_custom_variables_with_sub_module('ShipTo', '', old.shipto_id);
     END IF;
 
     RETURN old;
@@ -1006,19 +995,6 @@ $$;
 ALTER FUNCTION public.update_requirement_spec_item_time_estimation(item_id integer, item_requirement_spec_id integer) OWNER TO kivitendo;
 
 --
--- Name: comma(text); Type: AGGREGATE; Schema: public; Owner: kivitendo
---
-
-CREATE AGGREGATE public.comma(text) (
-    SFUNC = public.comma_aggregate,
-    STYPE = text,
-    INITCOND = ''
-);
-
-
-ALTER AGGREGATE public.comma(text) OWNER TO kivitendo;
-
---
 -- Name: first(anyelement); Type: AGGREGATE; Schema: public; Owner: kivitendo
 --
 
@@ -1193,8 +1169,6 @@ CREATE SEQUENCE public.assembly_assembly_id_seq
 
 ALTER TABLE public.assembly_assembly_id_seq OWNER TO kivitendo;
 
-SET default_with_oids = true;
-
 --
 -- Name: assembly; Type: TABLE; Schema: public; Owner: kivitendo
 --
@@ -1212,8 +1186,6 @@ CREATE TABLE public.assembly (
 
 
 ALTER TABLE public.assembly OWNER TO kivitendo;
-
-SET default_with_oids = false;
 
 --
 -- Name: assortment_items; Type: TABLE; Schema: public; Owner: kivitendo
@@ -1284,7 +1256,8 @@ CREATE TABLE public.background_jobs (
     next_run_at timestamp without time zone,
     data text,
     active boolean,
-    cron_spec character varying(255)
+    cron_spec character varying(255),
+    node_id text
 );
 
 
@@ -1342,11 +1315,29 @@ CREATE TABLE public.bank_accounts (
     reconciliation_starting_date date,
     reconciliation_starting_balance numeric(15,5),
     obsolete boolean DEFAULT false NOT NULL,
-    sortkey integer NOT NULL
+    sortkey integer NOT NULL,
+    use_for_zugferd boolean DEFAULT false NOT NULL
 );
 
 
 ALTER TABLE public.bank_accounts OWNER TO kivitendo;
+
+--
+-- Name: bank_transaction_acc_trans; Type: TABLE; Schema: public; Owner: kivitendo
+--
+
+CREATE TABLE public.bank_transaction_acc_trans (
+    bank_transaction_id integer NOT NULL,
+    acc_trans_id bigint NOT NULL,
+    ar_id integer,
+    ap_id integer,
+    gl_id integer,
+    itime timestamp without time zone DEFAULT now(),
+    mtime timestamp without time zone
+);
+
+
+ALTER TABLE public.bank_transaction_acc_trans OWNER TO kivitendo;
 
 --
 -- Name: bank_transaction_acc_trans_id_seq; Type: SEQUENCE; Schema: public; Owner: kivitendo
@@ -1361,24 +1352,6 @@ CREATE SEQUENCE public.bank_transaction_acc_trans_id_seq
 
 
 ALTER TABLE public.bank_transaction_acc_trans_id_seq OWNER TO kivitendo;
-
---
--- Name: bank_transaction_acc_trans; Type: TABLE; Schema: public; Owner: kivitendo
---
-
-CREATE TABLE public.bank_transaction_acc_trans (
-    id integer DEFAULT nextval('public.bank_transaction_acc_trans_id_seq'::regclass) NOT NULL,
-    bank_transaction_id integer NOT NULL,
-    acc_trans_id bigint NOT NULL,
-    ar_id integer,
-    ap_id integer,
-    gl_id integer,
-    itime timestamp without time zone DEFAULT now(),
-    mtime timestamp without time zone
-);
-
-
-ALTER TABLE public.bank_transaction_acc_trans OWNER TO kivitendo;
 
 --
 -- Name: bank_transactions; Type: TABLE; Schema: public; Owner: kivitendo
@@ -1512,6 +1485,74 @@ CREATE TABLE public.chart (
 
 
 ALTER TABLE public.chart OWNER TO kivitendo;
+
+--
+-- Name: contact_departments; Type: TABLE; Schema: public; Owner: kivitendo
+--
+
+CREATE TABLE public.contact_departments (
+    id integer NOT NULL,
+    description text NOT NULL
+);
+
+
+ALTER TABLE public.contact_departments OWNER TO kivitendo;
+
+--
+-- Name: contact_departments_id_seq; Type: SEQUENCE; Schema: public; Owner: kivitendo
+--
+
+CREATE SEQUENCE public.contact_departments_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.contact_departments_id_seq OWNER TO kivitendo;
+
+--
+-- Name: contact_departments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: kivitendo
+--
+
+ALTER SEQUENCE public.contact_departments_id_seq OWNED BY public.contact_departments.id;
+
+
+--
+-- Name: contact_titles; Type: TABLE; Schema: public; Owner: kivitendo
+--
+
+CREATE TABLE public.contact_titles (
+    id integer NOT NULL,
+    description text NOT NULL
+);
+
+
+ALTER TABLE public.contact_titles OWNER TO kivitendo;
+
+--
+-- Name: contact_titles_id_seq; Type: SEQUENCE; Schema: public; Owner: kivitendo
+--
+
+CREATE SEQUENCE public.contact_titles_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.contact_titles_id_seq OWNER TO kivitendo;
+
+--
+-- Name: contact_titles_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: kivitendo
+--
+
+ALTER SEQUENCE public.contact_titles_id_seq OWNED BY public.contact_titles.id;
+
 
 --
 -- Name: contacts; Type: TABLE; Schema: public; Owner: kivitendo
@@ -2011,7 +2052,9 @@ CREATE TABLE public.customer (
     commercial_court text,
     invoice_mail text,
     contact_origin text,
-    delivery_order_mail text
+    delivery_order_mail text,
+    create_zugferd_invoices integer DEFAULT '-1'::integer NOT NULL,
+    natural_person boolean DEFAULT false
 );
 
 
@@ -2125,7 +2168,6 @@ CREATE TABLE public.defaults (
     warehouse_id integer,
     bin_id integer,
     company text,
-    address text,
     taxnumber text,
     co_ustid text,
     duns text,
@@ -2220,7 +2262,21 @@ CREATE TABLE public.defaults (
     email_attachment_part_files_checked boolean DEFAULT true,
     email_attachment_record_files_checked boolean DEFAULT true,
     invoice_mail_settings public.invoice_mail_settings DEFAULT 'cp'::public.invoice_mail_settings,
-    dunning_creator public.dunning_creator DEFAULT 'current_employee'::public.dunning_creator
+    dunning_creator public.dunning_creator DEFAULT 'current_employee'::public.dunning_creator,
+    address_street1 text,
+    address_street2 text,
+    address_zipcode text,
+    address_city text,
+    address_country text,
+    workflow_po_ap_chart_id integer,
+    carry_over_account_chart_id integer,
+    profit_carried_forward_chart_id integer,
+    loss_carried_forward_chart_id integer,
+    contact_departments_use_textfield boolean,
+    contact_titles_use_textfield boolean,
+    create_zugferd_invoices integer,
+    vc_greetings_use_textfield boolean,
+    sales_serial_eq_charge boolean DEFAULT false NOT NULL
 );
 
 
@@ -2262,8 +2318,6 @@ CREATE SEQUENCE public.delivery_order_items_id
 
 ALTER TABLE public.delivery_order_items_id OWNER TO kivitendo;
 
-SET default_with_oids = true;
-
 --
 -- Name: delivery_order_items; Type: TABLE; Schema: public; Owner: kivitendo
 --
@@ -2299,8 +2353,6 @@ CREATE TABLE public.delivery_order_items (
 
 
 ALTER TABLE public.delivery_order_items OWNER TO kivitendo;
-
-SET default_with_oids = false;
 
 --
 -- Name: delivery_order_items_stock; Type: TABLE; Schema: public; Owner: kivitendo
@@ -2451,7 +2503,8 @@ CREATE TABLE public.dunning_config (
     email_subject text,
     email_attachment boolean,
     template text,
-    create_invoices_for_fees boolean DEFAULT true
+    create_invoices_for_fees boolean DEFAULT true,
+    print_original_invoice boolean
 );
 
 
@@ -2883,7 +2936,8 @@ CREATE TABLE public.gl (
     ob_transaction boolean,
     cb_transaction boolean,
     storno boolean DEFAULT false,
-    storno_id integer
+    storno_id integer,
+    deliverydate date
 );
 
 
@@ -2902,6 +2956,40 @@ CREATE SEQUENCE public.glid
 
 
 ALTER TABLE public.glid OWNER TO kivitendo;
+
+--
+-- Name: greetings; Type: TABLE; Schema: public; Owner: kivitendo
+--
+
+CREATE TABLE public.greetings (
+    id integer NOT NULL,
+    description text NOT NULL
+);
+
+
+ALTER TABLE public.greetings OWNER TO kivitendo;
+
+--
+-- Name: greetings_id_seq; Type: SEQUENCE; Schema: public; Owner: kivitendo
+--
+
+CREATE SEQUENCE public.greetings_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.greetings_id_seq OWNER TO kivitendo;
+
+--
+-- Name: greetings_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: kivitendo
+--
+
+ALTER SEQUENCE public.greetings_id_seq OWNED BY public.greetings.id;
+
 
 --
 -- Name: history_erp; Type: TABLE; Schema: public; Owner: kivitendo
@@ -2970,8 +3058,6 @@ ALTER TABLE public.inventory_id_seq OWNER TO kivitendo;
 ALTER SEQUENCE public.inventory_id_seq OWNED BY public.inventory.id;
 
 
-SET default_with_oids = true;
-
 --
 -- Name: invoice; Type: TABLE; Schema: public; Owner: kivitendo
 --
@@ -3028,8 +3114,6 @@ CREATE SEQUENCE public.invoiceid
 
 
 ALTER TABLE public.invoiceid OWNER TO kivitendo;
-
-SET default_with_oids = false;
 
 --
 -- Name: language; Type: TABLE; Schema: public; Owner: kivitendo
@@ -3220,13 +3304,12 @@ CREATE TABLE public.oe (
     marge_percent numeric(15,5),
     transaction_description text,
     delivery_term_id integer,
-    currency_id integer NOT NULL
+    currency_id integer NOT NULL,
+    exchangerate numeric(15,5)
 );
 
 
 ALTER TABLE public.oe OWNER TO kivitendo;
-
-SET default_with_oids = true;
 
 --
 -- Name: orderitems; Type: TABLE; Schema: public; Owner: kivitendo
@@ -3282,8 +3365,6 @@ CREATE SEQUENCE public.orderitemsid
 
 
 ALTER TABLE public.orderitemsid OWNER TO kivitendo;
-
-SET default_with_oids = false;
 
 --
 -- Name: part_classifications; Type: TABLE; Schema: public; Owner: kivitendo
@@ -3362,8 +3443,6 @@ ALTER TABLE public.part_customer_prices_id_seq OWNER TO kivitendo;
 ALTER SEQUENCE public.part_customer_prices_id_seq OWNED BY public.part_customer_prices.id;
 
 
-SET default_with_oids = true;
-
 --
 -- Name: parts; Type: TABLE; Schema: public; Owner: kivitendo
 --
@@ -3410,8 +3489,6 @@ CREATE TABLE public.parts (
 
 ALTER TABLE public.parts OWNER TO kivitendo;
 
-SET default_with_oids = false;
-
 --
 -- Name: parts_price_history; Type: TABLE; Schema: public; Owner: kivitendo
 --
@@ -3450,8 +3527,6 @@ ALTER TABLE public.parts_price_history_id_seq OWNER TO kivitendo;
 ALTER SEQUENCE public.parts_price_history_id_seq OWNED BY public.parts_price_history.id;
 
 
-SET default_with_oids = true;
-
 --
 -- Name: partsgroup; Type: TABLE; Schema: public; Owner: kivitendo
 --
@@ -3467,8 +3542,6 @@ CREATE TABLE public.partsgroup (
 
 
 ALTER TABLE public.partsgroup OWNER TO kivitendo;
-
-SET default_with_oids = false;
 
 --
 -- Name: payment_terms; Type: TABLE; Schema: public; Owner: kivitendo
@@ -5163,7 +5236,6 @@ ALTER TABLE public.stocktakings OWNER TO kivitendo;
 CREATE TABLE public.tax (
     chart_id integer,
     rate numeric(15,5) DEFAULT 0 NOT NULL,
-    taxnumber text,
     taxkey integer NOT NULL,
     taxdescription text NOT NULL,
     itime timestamp without time zone DEFAULT now(),
@@ -5536,7 +5608,8 @@ CREATE TABLE public.vendor (
     depositor text,
     delivery_term_id integer,
     currency_id integer NOT NULL,
-    gln text
+    gln text,
+    natural_person boolean DEFAULT false
 );
 
 
@@ -5622,6 +5695,20 @@ ALTER TABLE ONLY public.background_jobs ALTER COLUMN id SET DEFAULT nextval('pub
 --
 
 ALTER TABLE ONLY public.bank_transactions ALTER COLUMN id SET DEFAULT nextval('public.bank_transactions_id_seq'::regclass);
+
+
+--
+-- Name: contact_departments id; Type: DEFAULT; Schema: public; Owner: kivitendo
+--
+
+ALTER TABLE ONLY public.contact_departments ALTER COLUMN id SET DEFAULT nextval('public.contact_departments_id_seq'::regclass);
+
+
+--
+-- Name: contact_titles id; Type: DEFAULT; Schema: public; Owner: kivitendo
+--
+
+ALTER TABLE ONLY public.contact_titles ALTER COLUMN id SET DEFAULT nextval('public.contact_titles_id_seq'::regclass);
 
 
 --
@@ -5741,6 +5828,13 @@ ALTER TABLE ONLY public.follow_up_access ALTER COLUMN id SET DEFAULT nextval('pu
 --
 
 ALTER TABLE ONLY public.generic_translations ALTER COLUMN id SET DEFAULT nextval('public.generic_translations_id_seq'::regclass);
+
+
+--
+-- Name: greetings id; Type: DEFAULT; Schema: public; Owner: kivitendo
+--
+
+ALTER TABLE ONLY public.greetings ALTER COLUMN id SET DEFAULT nextval('public.greetings_id_seq'::regclass);
 
 
 --
@@ -6049,10 +6143,8 @@ ALTER TABLE ONLY public.user_preferences ALTER COLUMN id SET DEFAULT nextval('pu
 --
 
 COPY public.acc_trans (acc_trans_id, trans_id, chart_id, amount, transdate, gldate, source, cleared, fx_transaction, ob_transaction, cb_transaction, project_id, memo, taxkey, itime, mtime, chart_link, tax_id) FROM stdin;
-2	1	5	-1000.00000	2019-10-15	2019-10-15		f	f	f	f	\N		0	2019-10-15 11:50:50.874659	\N	AR_paid:AP_paid	0
-3	1	69	1000.00000	2019-10-15	2019-10-15		f	f	f	f	\N		0	2019-10-15 11:50:50.874659	\N		0
-4	2	9	-150.00000	2019-10-15	2019-10-15	\N	f	f	f	f	\N	\N	0	2019-10-15 11:52:10.264198	\N	AR	0
-5	2	74	150.00000	2019-10-15	2019-10-15	\N	f	f	f	f	\N	\N	0	2019-10-15 11:52:10.264198	\N	AR_amount:IC_sale	0
+1	1	74	1000.00000	2020-11-05	2020-11-05	\N	f	f	f	f	\N	\N	0	2020-11-05 16:00:33.563061	\N	AR_amount:IC_sale	0
+2	1	9	-1000.00000	2020-11-05	2020-11-05	\N	f	f	f	f	\N	\N	0	2020-11-05 16:00:33.563061	\N	AR	0
 \.
 
 
@@ -6069,7 +6161,7 @@ COPY public.ap (id, invnumber, transdate, gldate, vendor_id, taxincluded, amount
 --
 
 COPY public.ar (id, invnumber, transdate, gldate, customer_id, taxincluded, amount, netamount, paid, datepaid, duedate, deliverydate, invoice, shippingpoint, notes, ordnumber, employee_id, quonumber, cusordnumber, intnotes, department_id, shipvia, itime, mtime, cp_id, language_id, payment_id, delivery_customer_id, delivery_vendor_id, storno, taxzone_id, shipto_id, type, dunning_config_id, orddate, quodate, globalproject_id, salesman_id, marge_total, marge_percent, storno_id, transaction_description, donumber, invnumber_for_credit_note, direct_debit, delivery_term_id, currency_id) FROM stdin;
-2	1	2019-10-15	2019-10-15	410	f	150.00000	150.00000	0.00000	\N	2019-10-15	\N	t				409				\N		2019-10-15 11:52:10.264198	2019-10-15 11:52:10.264198	\N	\N	\N	\N	\N	f	4	\N	invoice	\N	\N	\N	\N	409	0.00000	0.00000	\N	Support		\N	f	\N	1
+1	1	2020-11-05	2020-11-05	410	f	1000.00000	1000.00000	0.00000	\N	2020-11-05	2020-11-05	t			1	409				\N		2020-11-05 16:00:33.563061	2020-11-05 16:00:33.563061	\N	\N	\N	\N	\N	f	4	\N	invoice	\N	2020-11-05	\N	\N	409	1000.00000	100.00000	\N			\N	f	\N	1
 \.
 
 
@@ -6101,12 +6193,12 @@ COPY public.background_job_histories (id, package_name, run_at, status, result, 
 -- Data for Name: background_jobs; Type: TABLE DATA; Schema: public; Owner: kivitendo
 --
 
-COPY public.background_jobs (id, type, package_name, last_run_at, next_run_at, data, active, cron_spec) FROM stdin;
-1	interval	CleanBackgroundJobHistory	\N	2019-10-16 03:00:00	\N	t	0 3 * * *
-3	interval	BackgroundJobCleanup	\N	2019-10-16 03:00:00	\N	t	0 3 * * *
-4	interval	SelfTest	\N	2019-10-16 02:20:00	\N	t	20 2 * * *
-2	interval	CreatePeriodicInvoices	\N	2019-10-16 03:00:00	\N	t	0 3 * * *
-5	interval	CleanAuthSessions	\N	2019-10-16 06:30:00	\N	t	30 6 * * *
+COPY public.background_jobs (id, type, package_name, last_run_at, next_run_at, data, active, cron_spec, node_id) FROM stdin;
+1	interval	CleanBackgroundJobHistory	\N	2020-11-06 03:00:00	\N	t	0 3 * * *	\N
+3	interval	BackgroundJobCleanup	\N	2020-11-06 03:00:00	\N	t	0 3 * * *	\N
+4	interval	SelfTest	\N	2020-11-06 02:20:00	\N	t	20 2 * * *	\N
+2	interval	CreatePeriodicInvoices	\N	2020-11-06 03:00:00	\N	t	0 3 * * *	\N
+5	interval	CleanAuthSessions	\N	2020-11-06 06:30:00	\N	t	30 6 * * *	\N
 \.
 
 
@@ -6114,7 +6206,7 @@ COPY public.background_jobs (id, type, package_name, last_run_at, next_run_at, d
 -- Data for Name: bank_accounts; Type: TABLE DATA; Schema: public; Owner: kivitendo
 --
 
-COPY public.bank_accounts (id, account_number, bank_code, iban, bic, bank, chart_id, name, reconciliation_starting_date, reconciliation_starting_balance, obsolete, sortkey) FROM stdin;
+COPY public.bank_accounts (id, account_number, bank_code, iban, bic, bank, chart_id, name, reconciliation_starting_date, reconciliation_starting_balance, obsolete, sortkey, use_for_zugferd) FROM stdin;
 \.
 
 
@@ -6122,7 +6214,7 @@ COPY public.bank_accounts (id, account_number, bank_code, iban, bic, bank, chart
 -- Data for Name: bank_transaction_acc_trans; Type: TABLE DATA; Schema: public; Owner: kivitendo
 --
 
-COPY public.bank_transaction_acc_trans (id, bank_transaction_id, acc_trans_id, ar_id, ap_id, gl_id, itime, mtime) FROM stdin;
+COPY public.bank_transaction_acc_trans (bank_transaction_id, acc_trans_id, ar_id, ap_id, gl_id, itime, mtime) FROM stdin;
 \.
 
 
@@ -6139,6 +6231,256 @@ COPY public.bank_transactions (id, transaction_id, remote_bank_code, remote_acco
 --
 
 COPY public.bin (id, warehouse_id, description, itime, mtime) FROM stdin;
+424	423	Lagerplatz1	2020-11-05 16:02:43.742531	\N
+425	423	Lagerplatz2	2020-11-05 16:02:43.742531	\N
+426	423	Lagerplatz3	2020-11-05 16:02:43.742531	\N
+427	423	Lagerplatz4	2020-11-05 16:02:43.742531	\N
+428	423	Lagerplatz5	2020-11-05 16:02:43.742531	\N
+429	423	Lagerplatz6	2020-11-05 16:02:43.742531	\N
+430	423	Lagerplatz7	2020-11-05 16:02:43.742531	\N
+431	423	Lagerplatz8	2020-11-05 16:02:43.742531	\N
+432	423	Lagerplatz9	2020-11-05 16:02:43.742531	\N
+433	423	Lagerplatz10	2020-11-05 16:02:43.742531	\N
+434	423	Lagerplatz11	2020-11-05 16:02:43.742531	\N
+435	423	Lagerplatz12	2020-11-05 16:02:43.742531	\N
+436	423	Lagerplatz13	2020-11-05 16:02:43.742531	\N
+437	423	Lagerplatz14	2020-11-05 16:02:43.742531	\N
+438	423	Lagerplatz15	2020-11-05 16:02:43.742531	\N
+439	423	Lagerplatz16	2020-11-05 16:02:43.742531	\N
+440	423	Lagerplatz17	2020-11-05 16:02:43.742531	\N
+441	423	Lagerplatz18	2020-11-05 16:02:43.742531	\N
+442	423	Lagerplatz19	2020-11-05 16:02:43.742531	\N
+443	423	Lagerplatz20	2020-11-05 16:02:43.742531	\N
+444	423	Lagerplatz21	2020-11-05 16:02:43.742531	\N
+445	423	Lagerplatz22	2020-11-05 16:02:43.742531	\N
+446	423	Lagerplatz23	2020-11-05 16:02:43.742531	\N
+447	423	Lagerplatz24	2020-11-05 16:02:43.742531	\N
+448	423	Lagerplatz25	2020-11-05 16:02:43.742531	\N
+449	423	Lagerplatz26	2020-11-05 16:02:43.742531	\N
+450	423	Lagerplatz27	2020-11-05 16:02:43.742531	\N
+451	423	Lagerplatz28	2020-11-05 16:02:43.742531	\N
+452	423	Lagerplatz29	2020-11-05 16:02:43.742531	\N
+453	423	Lagerplatz30	2020-11-05 16:02:43.742531	\N
+454	423	Lagerplatz31	2020-11-05 16:02:43.742531	\N
+455	423	Lagerplatz32	2020-11-05 16:02:43.742531	\N
+456	423	Lagerplatz33	2020-11-05 16:02:43.742531	\N
+457	423	Lagerplatz34	2020-11-05 16:02:43.742531	\N
+458	423	Lagerplatz35	2020-11-05 16:02:43.742531	\N
+459	423	Lagerplatz36	2020-11-05 16:02:43.742531	\N
+460	423	Lagerplatz37	2020-11-05 16:02:43.742531	\N
+461	423	Lagerplatz38	2020-11-05 16:02:43.742531	\N
+462	423	Lagerplatz39	2020-11-05 16:02:43.742531	\N
+463	423	Lagerplatz40	2020-11-05 16:02:43.742531	\N
+464	423	Lagerplatz41	2020-11-05 16:02:43.742531	\N
+465	423	Lagerplatz42	2020-11-05 16:02:43.742531	\N
+466	423	Lagerplatz43	2020-11-05 16:02:43.742531	\N
+467	423	Lagerplatz44	2020-11-05 16:02:43.742531	\N
+468	423	Lagerplatz45	2020-11-05 16:02:43.742531	\N
+469	423	Lagerplatz46	2020-11-05 16:02:43.742531	\N
+470	423	Lagerplatz47	2020-11-05 16:02:43.742531	\N
+471	423	Lagerplatz48	2020-11-05 16:02:43.742531	\N
+472	423	Lagerplatz49	2020-11-05 16:02:43.742531	\N
+473	423	Lagerplatz50	2020-11-05 16:02:43.742531	\N
+474	423	Lagerplatz51	2020-11-05 16:02:43.742531	\N
+475	423	Lagerplatz52	2020-11-05 16:02:43.742531	\N
+476	423	Lagerplatz53	2020-11-05 16:02:43.742531	\N
+477	423	Lagerplatz54	2020-11-05 16:02:43.742531	\N
+478	423	Lagerplatz55	2020-11-05 16:02:43.742531	\N
+479	423	Lagerplatz56	2020-11-05 16:02:43.742531	\N
+480	423	Lagerplatz57	2020-11-05 16:02:43.742531	\N
+481	423	Lagerplatz58	2020-11-05 16:02:43.742531	\N
+482	423	Lagerplatz59	2020-11-05 16:02:43.742531	\N
+483	423	Lagerplatz60	2020-11-05 16:02:43.742531	\N
+484	423	Lagerplatz61	2020-11-05 16:02:43.742531	\N
+485	423	Lagerplatz62	2020-11-05 16:02:43.742531	\N
+486	423	Lagerplatz63	2020-11-05 16:02:43.742531	\N
+487	423	Lagerplatz64	2020-11-05 16:02:43.742531	\N
+488	423	Lagerplatz65	2020-11-05 16:02:43.742531	\N
+489	423	Lagerplatz66	2020-11-05 16:02:43.742531	\N
+490	423	Lagerplatz67	2020-11-05 16:02:43.742531	\N
+491	423	Lagerplatz68	2020-11-05 16:02:43.742531	\N
+492	423	Lagerplatz69	2020-11-05 16:02:43.742531	\N
+493	423	Lagerplatz70	2020-11-05 16:02:43.742531	\N
+494	423	Lagerplatz71	2020-11-05 16:02:43.742531	\N
+495	423	Lagerplatz72	2020-11-05 16:02:43.742531	\N
+496	423	Lagerplatz73	2020-11-05 16:02:43.742531	\N
+497	423	Lagerplatz74	2020-11-05 16:02:43.742531	\N
+498	423	Lagerplatz75	2020-11-05 16:02:43.742531	\N
+499	423	Lagerplatz76	2020-11-05 16:02:43.742531	\N
+500	423	Lagerplatz77	2020-11-05 16:02:43.742531	\N
+501	423	Lagerplatz78	2020-11-05 16:02:43.742531	\N
+502	423	Lagerplatz79	2020-11-05 16:02:43.742531	\N
+503	423	Lagerplatz80	2020-11-05 16:02:43.742531	\N
+504	423	Lagerplatz81	2020-11-05 16:02:43.742531	\N
+505	423	Lagerplatz82	2020-11-05 16:02:43.742531	\N
+506	423	Lagerplatz83	2020-11-05 16:02:43.742531	\N
+507	423	Lagerplatz84	2020-11-05 16:02:43.742531	\N
+508	423	Lagerplatz85	2020-11-05 16:02:43.742531	\N
+509	423	Lagerplatz86	2020-11-05 16:02:43.742531	\N
+510	423	Lagerplatz87	2020-11-05 16:02:43.742531	\N
+511	423	Lagerplatz88	2020-11-05 16:02:43.742531	\N
+512	423	Lagerplatz89	2020-11-05 16:02:43.742531	\N
+513	423	Lagerplatz90	2020-11-05 16:02:43.742531	\N
+514	423	Lagerplatz91	2020-11-05 16:02:43.742531	\N
+515	423	Lagerplatz92	2020-11-05 16:02:43.742531	\N
+516	423	Lagerplatz93	2020-11-05 16:02:43.742531	\N
+517	423	Lagerplatz94	2020-11-05 16:02:43.742531	\N
+518	423	Lagerplatz95	2020-11-05 16:02:43.742531	\N
+519	423	Lagerplatz96	2020-11-05 16:02:43.742531	\N
+520	423	Lagerplatz97	2020-11-05 16:02:43.742531	\N
+521	423	Lagerplatz98	2020-11-05 16:02:43.742531	\N
+522	423	Lagerplatz99	2020-11-05 16:02:43.742531	\N
+523	423	Lagerplatz100	2020-11-05 16:02:43.742531	\N
+524	423	Lagerplatz101	2020-11-05 16:02:43.742531	\N
+525	423	Lagerplatz102	2020-11-05 16:02:43.742531	\N
+526	423	Lagerplatz103	2020-11-05 16:02:43.742531	\N
+527	423	Lagerplatz104	2020-11-05 16:02:43.742531	\N
+528	423	Lagerplatz105	2020-11-05 16:02:43.742531	\N
+529	423	Lagerplatz106	2020-11-05 16:02:43.742531	\N
+530	423	Lagerplatz107	2020-11-05 16:02:43.742531	\N
+531	423	Lagerplatz108	2020-11-05 16:02:43.742531	\N
+532	423	Lagerplatz109	2020-11-05 16:02:43.742531	\N
+533	423	Lagerplatz110	2020-11-05 16:02:43.742531	\N
+534	423	Lagerplatz111	2020-11-05 16:02:43.742531	\N
+535	423	Lagerplatz112	2020-11-05 16:02:43.742531	\N
+536	423	Lagerplatz113	2020-11-05 16:02:43.742531	\N
+537	423	Lagerplatz114	2020-11-05 16:02:43.742531	\N
+538	423	Lagerplatz115	2020-11-05 16:02:43.742531	\N
+539	423	Lagerplatz116	2020-11-05 16:02:43.742531	\N
+540	423	Lagerplatz117	2020-11-05 16:02:43.742531	\N
+541	423	Lagerplatz118	2020-11-05 16:02:43.742531	\N
+542	423	Lagerplatz119	2020-11-05 16:02:43.742531	\N
+543	423	Lagerplatz120	2020-11-05 16:02:43.742531	\N
+544	423	Lagerplatz121	2020-11-05 16:02:43.742531	\N
+545	423	Lagerplatz122	2020-11-05 16:02:43.742531	\N
+546	423	Lagerplatz123	2020-11-05 16:02:43.742531	\N
+547	423	Lagerplatz124	2020-11-05 16:02:43.742531	\N
+548	423	Lagerplatz125	2020-11-05 16:02:43.742531	\N
+549	423	Lagerplatz126	2020-11-05 16:02:43.742531	\N
+550	423	Lagerplatz127	2020-11-05 16:02:43.742531	\N
+551	423	Lagerplatz128	2020-11-05 16:02:43.742531	\N
+552	423	Lagerplatz129	2020-11-05 16:02:43.742531	\N
+553	423	Lagerplatz130	2020-11-05 16:02:43.742531	\N
+554	423	Lagerplatz131	2020-11-05 16:02:43.742531	\N
+555	423	Lagerplatz132	2020-11-05 16:02:43.742531	\N
+556	423	Lagerplatz133	2020-11-05 16:02:43.742531	\N
+557	423	Lagerplatz134	2020-11-05 16:02:43.742531	\N
+558	423	Lagerplatz135	2020-11-05 16:02:43.742531	\N
+559	423	Lagerplatz136	2020-11-05 16:02:43.742531	\N
+560	423	Lagerplatz137	2020-11-05 16:02:43.742531	\N
+561	423	Lagerplatz138	2020-11-05 16:02:43.742531	\N
+562	423	Lagerplatz139	2020-11-05 16:02:43.742531	\N
+563	423	Lagerplatz140	2020-11-05 16:02:43.742531	\N
+564	423	Lagerplatz141	2020-11-05 16:02:43.742531	\N
+565	423	Lagerplatz142	2020-11-05 16:02:43.742531	\N
+566	423	Lagerplatz143	2020-11-05 16:02:43.742531	\N
+567	423	Lagerplatz144	2020-11-05 16:02:43.742531	\N
+568	423	Lagerplatz145	2020-11-05 16:02:43.742531	\N
+569	423	Lagerplatz146	2020-11-05 16:02:43.742531	\N
+570	423	Lagerplatz147	2020-11-05 16:02:43.742531	\N
+571	423	Lagerplatz148	2020-11-05 16:02:43.742531	\N
+572	423	Lagerplatz149	2020-11-05 16:02:43.742531	\N
+573	423	Lagerplatz150	2020-11-05 16:02:43.742531	\N
+574	423	Lagerplatz151	2020-11-05 16:02:43.742531	\N
+575	423	Lagerplatz152	2020-11-05 16:02:43.742531	\N
+576	423	Lagerplatz153	2020-11-05 16:02:43.742531	\N
+577	423	Lagerplatz154	2020-11-05 16:02:43.742531	\N
+578	423	Lagerplatz155	2020-11-05 16:02:43.742531	\N
+579	423	Lagerplatz156	2020-11-05 16:02:43.742531	\N
+580	423	Lagerplatz157	2020-11-05 16:02:43.742531	\N
+581	423	Lagerplatz158	2020-11-05 16:02:43.742531	\N
+582	423	Lagerplatz159	2020-11-05 16:02:43.742531	\N
+583	423	Lagerplatz160	2020-11-05 16:02:43.742531	\N
+584	423	Lagerplatz161	2020-11-05 16:02:43.742531	\N
+585	423	Lagerplatz162	2020-11-05 16:02:43.742531	\N
+586	423	Lagerplatz163	2020-11-05 16:02:43.742531	\N
+587	423	Lagerplatz164	2020-11-05 16:02:43.742531	\N
+588	423	Lagerplatz165	2020-11-05 16:02:43.742531	\N
+589	423	Lagerplatz166	2020-11-05 16:02:43.742531	\N
+590	423	Lagerplatz167	2020-11-05 16:02:43.742531	\N
+591	423	Lagerplatz168	2020-11-05 16:02:43.742531	\N
+592	423	Lagerplatz169	2020-11-05 16:02:43.742531	\N
+593	423	Lagerplatz170	2020-11-05 16:02:43.742531	\N
+594	423	Lagerplatz171	2020-11-05 16:02:43.742531	\N
+595	423	Lagerplatz172	2020-11-05 16:02:43.742531	\N
+596	423	Lagerplatz173	2020-11-05 16:02:43.742531	\N
+597	423	Lagerplatz174	2020-11-05 16:02:43.742531	\N
+598	423	Lagerplatz175	2020-11-05 16:02:43.742531	\N
+599	423	Lagerplatz176	2020-11-05 16:02:43.742531	\N
+600	423	Lagerplatz177	2020-11-05 16:02:43.742531	\N
+601	423	Lagerplatz178	2020-11-05 16:02:43.742531	\N
+602	423	Lagerplatz179	2020-11-05 16:02:43.742531	\N
+603	423	Lagerplatz180	2020-11-05 16:02:43.742531	\N
+604	423	Lagerplatz181	2020-11-05 16:02:43.742531	\N
+605	423	Lagerplatz182	2020-11-05 16:02:43.742531	\N
+606	423	Lagerplatz183	2020-11-05 16:02:43.742531	\N
+607	423	Lagerplatz184	2020-11-05 16:02:43.742531	\N
+608	423	Lagerplatz185	2020-11-05 16:02:43.742531	\N
+609	423	Lagerplatz186	2020-11-05 16:02:43.742531	\N
+610	423	Lagerplatz187	2020-11-05 16:02:43.742531	\N
+611	423	Lagerplatz188	2020-11-05 16:02:43.742531	\N
+612	423	Lagerplatz189	2020-11-05 16:02:43.742531	\N
+613	423	Lagerplatz190	2020-11-05 16:02:43.742531	\N
+614	423	Lagerplatz191	2020-11-05 16:02:43.742531	\N
+615	423	Lagerplatz192	2020-11-05 16:02:43.742531	\N
+616	423	Lagerplatz193	2020-11-05 16:02:43.742531	\N
+617	423	Lagerplatz194	2020-11-05 16:02:43.742531	\N
+618	423	Lagerplatz195	2020-11-05 16:02:43.742531	\N
+619	423	Lagerplatz196	2020-11-05 16:02:43.742531	\N
+620	423	Lagerplatz197	2020-11-05 16:02:43.742531	\N
+621	423	Lagerplatz198	2020-11-05 16:02:43.742531	\N
+622	423	Lagerplatz199	2020-11-05 16:02:43.742531	\N
+623	423	Lagerplatz200	2020-11-05 16:02:43.742531	\N
+624	423	Lagerplatz201	2020-11-05 16:02:43.742531	\N
+625	423	Lagerplatz202	2020-11-05 16:02:43.742531	\N
+626	423	Lagerplatz203	2020-11-05 16:02:43.742531	\N
+627	423	Lagerplatz204	2020-11-05 16:02:43.742531	\N
+628	423	Lagerplatz205	2020-11-05 16:02:43.742531	\N
+629	423	Lagerplatz206	2020-11-05 16:02:43.742531	\N
+630	423	Lagerplatz207	2020-11-05 16:02:43.742531	\N
+631	423	Lagerplatz208	2020-11-05 16:02:43.742531	\N
+632	423	Lagerplatz209	2020-11-05 16:02:43.742531	\N
+633	423	Lagerplatz210	2020-11-05 16:02:43.742531	\N
+634	423	Lagerplatz211	2020-11-05 16:02:43.742531	\N
+635	423	Lagerplatz212	2020-11-05 16:02:43.742531	\N
+636	423	Lagerplatz213	2020-11-05 16:02:43.742531	\N
+637	423	Lagerplatz214	2020-11-05 16:02:43.742531	\N
+638	423	Lagerplatz215	2020-11-05 16:02:43.742531	\N
+639	423	Lagerplatz216	2020-11-05 16:02:43.742531	\N
+640	423	Lagerplatz217	2020-11-05 16:02:43.742531	\N
+641	423	Lagerplatz218	2020-11-05 16:02:43.742531	\N
+642	423	Lagerplatz219	2020-11-05 16:02:43.742531	\N
+643	423	Lagerplatz220	2020-11-05 16:02:43.742531	\N
+644	423	Lagerplatz221	2020-11-05 16:02:43.742531	\N
+645	423	Lagerplatz222	2020-11-05 16:02:43.742531	\N
+646	423	Lagerplatz223	2020-11-05 16:02:43.742531	\N
+647	423	Lagerplatz224	2020-11-05 16:02:43.742531	\N
+648	423	Lagerplatz225	2020-11-05 16:02:43.742531	\N
+649	423	Lagerplatz226	2020-11-05 16:02:43.742531	\N
+650	423	Lagerplatz227	2020-11-05 16:02:43.742531	\N
+651	423	Lagerplatz228	2020-11-05 16:02:43.742531	\N
+652	423	Lagerplatz229	2020-11-05 16:02:43.742531	\N
+653	423	Lagerplatz230	2020-11-05 16:02:43.742531	\N
+654	423	Lagerplatz231	2020-11-05 16:02:43.742531	\N
+655	423	Lagerplatz232	2020-11-05 16:02:43.742531	\N
+656	423	Lagerplatz233	2020-11-05 16:02:43.742531	\N
+657	423	Lagerplatz234	2020-11-05 16:02:43.742531	\N
+658	423	Lagerplatz235	2020-11-05 16:02:43.742531	\N
+659	423	Lagerplatz236	2020-11-05 16:02:43.742531	\N
+660	423	Lagerplatz237	2020-11-05 16:02:43.742531	\N
+661	423	Lagerplatz238	2020-11-05 16:02:43.742531	\N
+662	423	Lagerplatz239	2020-11-05 16:02:43.742531	\N
+663	423	Lagerplatz240	2020-11-05 16:02:43.742531	\N
+664	423	Lagerplatz241	2020-11-05 16:02:43.742531	\N
+665	423	Lagerplatz242	2020-11-05 16:02:43.742531	\N
+666	423	Lagerplatz243	2020-11-05 16:02:43.742531	\N
+667	423	Lagerplatz244	2020-11-05 16:02:43.742531	\N
+668	423	Lagerplatz245	2020-11-05 16:02:43.742531	\N
+669	423	Lagerplatz246	2020-11-05 16:02:43.742531	\N
+670	423	Lagerplatz247	2020-11-05 16:02:43.742531	\N
+671	423	Lagerplatz248	2020-11-05 16:02:43.742531	\N
+672	423	Lagerplatz249	2020-11-05 16:02:43.742531	\N
+673	423	Lagerplatz250	2020-11-05 16:02:43.742531	\N
 \.
 
 
@@ -6164,197 +6506,213 @@ COPY public.business (id, description, discount, customernumberinit, salesman, i
 --
 
 COPY public.chart (id, accno, description, charttype, category, link, taxkey_id, pos_bwa, pos_bilanz, pos_eur, datevautomatik, itime, mtime, new_chart_id, valid_from, pos_er) FROM stdin;
-19	1290	Angefangene Arbeiten	A	A	IC	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-20	130	Aktive Rechnungsabgrenzungen	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-21	1300	Aktive Rechnungsabgrenzungen	A	A		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-22	14	ANLAGEVERMÖGEN	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-23	140	Finanzanlagen	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-24	148	Beteiligungen	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-25	150	Mobile Sachanlagen	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-26	1500	Maschinen und Apparate	A	A	IC	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-27	1510	Mobiliar und Einrichtungen	A	A	IC	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-28	1520	Büromaschinen, Informatik	A	A	IC	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-29	1530	Fahrzeuge	A	A	IC	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-30	1540	Werkzeuge und Geräte	A	A	IC	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-31	160	Immobile Sachanlagen	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-32	170	Immaterielle Werte	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-33	180	Nicht einbezahltes Grund- Gesellschafter- oder Stiftungskapital	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-34	2	PASSIVEN	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-35	20	KURZFRISTIGES FREMDKAPITAL	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-36	200	Verbindlichkeiten aus Lieferungen und Leistungen	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-37	2000	Verbindlichkeiten aus Lieferungen und Leistungen	A	L	AP	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-38	2001	Übrige Kreditoren	A	L	AP	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-39	2030	Anzahlungen von Kundinnen und Kunden	A	L	AR_paid:AP_paid	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-40	210	Kurzfristige verzinsliche Verbindlichkeiten	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-41	2100	Bankverbindlichkeiten	A	L	AR_paid:AP_paid	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-42	2140	Übrige verzinsliche Verbindlichkeiten	A	L	AP	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-43	220	Übrige kurzfristige Verbindlichkeiten	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-44	2200	Geschuldete MWST(2,5)	A	L	AR_tax:IC_taxpart:IC_taxservice	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-45	2201	Geschuldete MWST(8,0)	A	L	AR_tax:IC_taxpart:IC_taxservice	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-46	2206	Verrechnungssteuer	A	L	AP	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-47	2210	Geschuldete Steuern	A	L	AP	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-48	2250	Personalaufwand	A	L	AP	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-49	2270	Verbindlichkeiten Sozialversicherungen und Vorsorgeeinrichtungen	A	L	AP	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-50	230	Passive Rechnungsabgrenzungen und kurzfristige Rückstellungen	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-51	2300	Passive Rechnungsabgrenzungen	A	L		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-52	2330	Kurzfristige Rückstellungen	A	L		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-53	24	LANGFRISTIGES FREMDKAPITAL	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-54	240	Langfristige verzinsliche Verbindlichkeiten	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-55	2400	Bankverbindlichkeiten	A	L		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-56	2450	Langfristige verzinsliche Darlehen	A	L		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-57	250	Übrige langfristige Verbindlichkeiten	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-58	2500	Zinslose Darlehen	A	L		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-59	260	Rückstellungen sowie vom Gesetz vorgesehene ähnliche Positionen	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-60	28	EIGENKAPITAL	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-61	280	Grund-, Gesellschafter- oder Stiftungskapital	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-62	2800	Stammkapital	A	Q		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-63	290	Reserven, Jahresgewinn oder Jahresverlust	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-64	2900	Gesetzliche Kapitalreserve	A	Q		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-65	2950	Gesetzliche Gewinnreserve	A	Q		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-66	2960	Freiwillige Gewinnreserve	A	Q		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-67	2970	Gewinn- oder Verlustvortrag	A	Q		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-68	2979	Jahresgewinn oder -verlust	A	Q		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-69	2980	Eigene Kapitalanteile	A	Q		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-70	3	BETRIEBLICHER ERTRAG AUS LIEFERUNGEN UND LEISTUNGEN	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-71	30	PRODUKTIONSERLÖSE	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-72	3000	Produktionserlöse	A	I	AR_amount:IC_sale	0	\N	\N	1	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	1
-73	32	HANDELSERLÖSE	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-74	3200	Handelserlöse	A	I	AR_amount:IC_sale	0	\N	\N	1	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	1
-75	34	DIENSTLEISTUNGSERLÖSE	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-76	3400	Dienstleistungserlöse	A	I	AR_amount:IC_income	0	\N	\N	1	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	1
-77	36	ÜBRIGE ERLÖSE AUS LIEFERUNGEN UND LEISTUNGEN	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-78	3600	Übrige Erlöse aus Lieferungen und Leistungen	A	I	IC_income	0	\N	\N	1	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	1
-79	37	EIGENLEISTUNGEN UND EIGENVERBRAUCH	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-80	3700	Eigenleistungen	A	I		0	\N	\N	1	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	1
-81	38	ERLÖSMINDERUNGEN	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-82	3800	Skonti	A	E	AR_paid	0	\N	\N	1	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	1
-83	3801	Rabatte, Preisnachlässe	A	E	AR_paid	0	\N	\N	1	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	1
-84	3805	Verluste aus Forderungen	A	E	AR_paid	0	\N	\N	1	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	1
-85	3809	MWST - nur Saldosteuersatz	A	E	AR_paid	0	\N	\N	1	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	1
-86	39	BESTANDESÄNDERUNGEN AN UNFERTIGEN UND FERTIGEN ERZEUGNISSEN SOWIE AN NICHT FAKTURIERTEN DIENSTLEISTUNGEN	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-87	3900	Bestandesänderungen	A	I		0	\N	\N	1	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	1
-88	4	AUFWAND FÜR MATERIAL, HANDELSWAREN, DIENSTLEISTUNGEN UND ENERGIE	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-89	40	MATERIALAUFWAND	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-90	4000	Materialeinkauf	A	E	AP_amount:IC_cogs	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-91	42	HANDELSWARENAUFWAND	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-92	4200	Einkauf Handelswaren	A	E	AP_amount:IC_cogs	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-93	4208	Bestandsänderungen Handelswaren	A	E	AP_amount:IC_cogs	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-94	44	AUFWAND FÜR BEZOGENE DRITTLEISTUNGEN	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-95	4400	Aufwand für Drittleistungen	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-96	45	ENERGIEAUFWAND ZUR LEISTUNGSERSTELLUNG	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-97	4500	Energieaufwand zur Leistungserstellung	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-98	46	ÜBRIGER AUFWAND FÜR MATERIAL, HANDELSWAREN UND DIENSTLEISTUNGEN	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-99	47	DIREKTE EINKAUFSSPESEN	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-100	4700	Einkaufsspesen	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-101	48	BESTANDESÄNDERUNGEN UND MATERIAL-/WARENVERLUSTE	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-102	4800	Bestandesänderungen	A	E		0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-103	49	EINKAUFSPREISMINDERUNGEN	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-104	4900	Skonti, Rabatte, Preisnachlässe	A	I	AP_paid	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-105	5	PERSONALAUFWAND	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-106	500	Löhne und Gehälter	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-107	5000	Löhne und Gehälter	A	E	IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-108	5001	Erfolgsbeteiligungen	A	E	IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-109	5005	Leistungen von Sozialversicherungen	A	I	IC_income	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-110	57	SOZIALVERSICHERUNGSAUFWAND	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-111	5700	AHV, IV, EO, ALV	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-112	5710	FAK	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-113	5720	Berufliche Vorsorge	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-114	5730	Unfallversicherung	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-115	5740	Krankentaggeldversicherung	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-116	5790	Quellensteuer	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-117	58	ÜBRIGER PERSONALAUFWAND	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-118	5800	Aufwand für Personaleinstellung	A	E	IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-119	5810	Weiterbildungskosten	A	E	IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-120	5830	Spesen	A	E	IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-121	5880	Sonstiger Personalaufwand	A	E	IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-122	59	LEISTUNGEN DRITTER	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-123	6	ÜBRIGER BETRIEBLICHER AUFWAND, ABSCHREIBUNGEN UND WERTBERICHTIGUNGEN SOWIE FINANZERGEBNIS	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-124	60	RAUMAUFWAND	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-125	6000	Miete	A	E	IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-126	6040	Reinigung	A	E	IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-127	6050	Übriger Raumaufwand	A	E	IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-128	61	UNTERHALT, REPARATUREN, ERSATZ, LEASING, MOBILE SACHANLAGEN	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-129	6100	Unterhalt	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-130	62	FAHRZEUG- UND TRANSPORTAUFWAND	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-131	6200	Fahrzeugaufwand	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-132	6201	Transportaufwand	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-133	63	SACHVERSICHERUNGEN, ABGABEN, GEBÜHREN, BEWILLIGUNGEN	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-134	6300	Betriebsversicherungen	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-135	6360	Abgaben, Gebühren und Bewilligungen	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-136	64	ENERGIE- UND ENTSORGUNGSAUFWAND	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-137	6400	Strom, Gas, Wasser	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-138	6460	Entsorgungsaufwand	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-139	65	VERWALTUNGS- UND INFORMATIKAUFWAND	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-140	6500	Büromaterial, Drucksachen	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-141	6503	Fachliteratur	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-142	6510	Telefon, Fax, Porti Internet	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-143	6520	Beiträge, Spenden	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-144	6530	Buchführungs- und Beratungsaufwand	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-145	6540	Verwaltungsrat, GV, Revision	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-146	6570	Informatikaufwand	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-147	6590	Übriger Verwaltungsaufwand	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-148	66	WERBEAUFWAND	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-173	8	BETRIEBSFREMDER, AUSSERORDENTLICHER, EINMALIGER UND PERIODENFREMDER AUFWAND UND ERTRAG	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-174	80	BETRIEBSFREMDER AUFWAND UND BETRIEBSFREMDER ERTRAG	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-1	1	AKTIVEN	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-2	10	UMLAUFSVERMÖGEN	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-3	100	Flüssige Mittel	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-4	1000	Kasse	A	A	AR_paid:AP_paid	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-5	1020	Postfinance oder Bank1	A	A	AR_paid:AP_paid	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-6	1021	Bank2	A	A	AR_paid:AP_paid	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-7	106	Kurzfristig gehaltene Aktiven mit Börsenkurs	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-8	110	Forderungen aus Lieferungen und Leistungen	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-9	1100	Forderungen aus Lieferungen und Leistungen	A	A	AR	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-10	114	Übrige kurzfristige Forderungen	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-11	1140	Vorschüsse, kurzfristige Darlehen	A	A	AR	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-12	1170	Vorsteuer auf Aufwand	A	A	AP_tax:IC_taxpart:IC_taxservice	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-13	1171	Vorsteuer auf Investitionen	A	A	AP_tax:IC_taxpart:IC_taxservice	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-14	1176	Verrechnungssteuer	A	A		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-15	120	Vorräte und nicht fakturierte Dienstleistungen	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-16	1200	Handelswaren	A	A	IC	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-17	1210	Rohstoffe	A	A	IC	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-18	1280	Nicht fakturierte Dienstleistungen	A	A	IC	0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-175	8000	Betriebsfremder Aufwand	A	E	AP_amount:IC_cogs:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-176	8100	Betriebsfremder Ertrag	A	I	AR_amount:IC_sale:IC_income	0	\N	\N	1	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	1
-177	85	AUSSERORDENTLICHER, EINMALIGER AUFWAND UND ERTRAG	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-178	8500	Ausserordentlicher Aufwand	A	E	AP_amount:IC_cogs:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-179	8510	Ausserordentlicher Ertrag	A	I	AR_amount:IC_sale:IC_income	0	\N	\N	1	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	1
-180	87	PERIODENFREMDER AUFWAND UND ERTRAG	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-181	8700	Periodenfremder Aufwand	A	E	AP_amount:IC_cogs:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-182	8710	Periodenfremder Ertrag	A	I	AR_amount:IC_sale:IC_income	0	\N	\N	1	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	1
-183	89	DIREKTE STEUERN	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-184	8900	Direkte Steuern	A	E		0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-185	9	ABSCHLUSS	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-186	90	ERFOLGSRECHNUNG	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-187	91	BILANZ	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-188	9100	Eröffnungsbilanz	A	E		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-189	92	GEWINNVERWENDUNG	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-190	95	JAHRESERGEBNISSE	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-191	99	HILFSKONTEN NEBENBÜCHER	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-149	6600	Werbeaufwand	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-150	67	SONSTIGER BETRIEBLICHER AUFWAND	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-151	6720	Forschung und Entwicklung	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-152	6790	Übriger Betriebsaufwand	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-153	68	ABSCHREIBUNGEN UND WERTBERICHTIGUNGEN AUF POSITIONEN DES ANLAGEVERMÖGENS	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-154	6800	Abschreibungen Finanzanlagen	A	E		0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-155	6810	Abschreibungen Beteiligungen	A	E		0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-156	6820	Abschreibungen mobile Sachanlagen	A	E		0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-157	6840	Abschreibungen immaterielle Anlagen	A	E		0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-158	69	FINANZAUFWAND UND FINANZERTRAG	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-159	690	Finanzaufwand	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-160	6900	Finanzaufwand	A	E		0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-161	6940	Bankspesen	A	E		0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-162	6942	Kursverluste	A	E		0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-163	6943	Rundungsaufwand	A	E	AP_amount:IC_cogs:IC_expense	0	\N	\N	6	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	6
-164	695	Finanzertrag	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-165	6950	Finanzertrag	A	I		0	\N	\N	1	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	1
-166	6952	Kursgewinne	A	I		0	\N	\N	1	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	1
-167	6953	Rundungsertrag	A	I	AR_amount:IC_sale:IC_income	0	\N	\N	1	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	1
-168	6970	Mitgliederbeiträge	A	I	AR_amount:IC_income	0	\N	\N	1	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	1
-169	6980	Spenden	A	I	AR_amount:IC_income	0	\N	\N	1	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	1
-170	7	BETRIEBLICHER NEBENERFOLG	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-171	70	ERFOLG AUS NEBENBETRIEBEN	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
-172	75	ERFOLG AUS BETRIEBLICHEN LIEGENSCHAFTEN	H	 		0	\N	\N	\N	f	2019-10-15 11:37:00.716536	2019-10-15 11:37:11.19297	\N	2011-01-01	\N
+1	1	AKTIVEN	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+2	10	UMLAUFSVERMÖGEN	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+3	100	Flüssige Mittel	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+4	1000	Kasse	A	A	AR_paid:AP_paid	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+5	1020	Postfinance oder Bank1	A	A	AR_paid:AP_paid	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+6	1021	Bank2	A	A	AR_paid:AP_paid	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+7	106	Kurzfristig gehaltene Aktiven mit Börsenkurs	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+8	110	Forderungen aus Lieferungen und Leistungen	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+9	1100	Forderungen aus Lieferungen und Leistungen	A	A	AR	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+10	114	Übrige kurzfristige Forderungen	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+11	1140	Vorschüsse, kurzfristige Darlehen	A	A	AR	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+12	1170	Vorsteuer auf Aufwand	A	A	AP_tax:IC_taxpart:IC_taxservice	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+13	1171	Vorsteuer auf Investitionen	A	A	AP_tax:IC_taxpart:IC_taxservice	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+14	1176	Verrechnungssteuer	A	A		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+15	120	Vorräte und nicht fakturierte Dienstleistungen	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+16	1200	Handelswaren	A	A	IC	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+17	1210	Rohstoffe	A	A	IC	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+18	1280	Nicht fakturierte Dienstleistungen	A	A	IC	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+19	1290	Angefangene Arbeiten	A	A	IC	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+20	130	Aktive Rechnungsabgrenzungen	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+21	1300	Aktive Rechnungsabgrenzungen	A	A		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+22	14	ANLAGEVERMÖGEN	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+23	140	Finanzanlagen	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+24	148	Beteiligungen	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+25	150	Mobile Sachanlagen	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+26	1500	Maschinen und Apparate	A	A	IC	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+27	1510	Mobiliar und Einrichtungen	A	A	IC	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+28	1520	Büromaschinen, Informatik	A	A	IC	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+29	1530	Fahrzeuge	A	A	IC	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+30	1540	Werkzeuge und Geräte	A	A	IC	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+31	160	Immobile Sachanlagen	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+32	170	Immaterielle Werte	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+33	180	Nicht einbezahltes Grund- Gesellschafter- oder Stiftungskapital	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+34	2	PASSIVEN	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+35	20	KURZFRISTIGES FREMDKAPITAL	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+36	200	Verbindlichkeiten aus Lieferungen und Leistungen	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+37	2000	Verbindlichkeiten aus Lieferungen und Leistungen	A	L	AP	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+38	2001	Übrige Kreditoren	A	L	AP	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+39	2030	Anzahlungen von Kundinnen und Kunden	A	L	AR_paid:AP_paid	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+40	210	Kurzfristige verzinsliche Verbindlichkeiten	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+41	2100	Bankverbindlichkeiten	A	L	AR_paid:AP_paid	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+42	2140	Übrige verzinsliche Verbindlichkeiten	A	L	AP	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+150	67	SONSTIGER BETRIEBLICHER AUFWAND	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+43	220	Übrige kurzfristige Verbindlichkeiten	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+44	2200	Geschuldete MWST(2,5)	A	L	AR_tax:IC_taxpart:IC_taxservice	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+45	2201	Geschuldete MWST(8,0)	A	L	AR_tax:IC_taxpart:IC_taxservice	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+46	2206	Verrechnungssteuer	A	L	AP	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+47	2210	Geschuldete Steuern	A	L	AP	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+48	2250	Personalaufwand	A	L	AP	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+49	2270	Verbindlichkeiten Sozialversicherungen und Vorsorgeeinrichtungen	A	L	AP	0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+50	230	Passive Rechnungsabgrenzungen und kurzfristige Rückstellungen	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+51	2300	Passive Rechnungsabgrenzungen	A	L		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+52	2330	Kurzfristige Rückstellungen	A	L		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+53	24	LANGFRISTIGES FREMDKAPITAL	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+54	240	Langfristige verzinsliche Verbindlichkeiten	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+55	2400	Bankverbindlichkeiten	A	L		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+56	2450	Langfristige verzinsliche Darlehen	A	L		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+57	250	Übrige langfristige Verbindlichkeiten	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+58	2500	Zinslose Darlehen	A	L		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+59	260	Rückstellungen sowie vom Gesetz vorgesehene ähnliche Positionen	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+60	28	EIGENKAPITAL	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+61	280	Grund-, Gesellschafter- oder Stiftungskapital	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+62	2800	Stammkapital	A	Q		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+63	290	Reserven, Jahresgewinn oder Jahresverlust	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+64	2900	Gesetzliche Kapitalreserve	A	Q		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+65	2950	Gesetzliche Gewinnreserve	A	Q		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+66	2960	Freiwillige Gewinnreserve	A	Q		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+67	2970	Gewinn- oder Verlustvortrag	A	Q		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+68	2979	Jahresgewinn oder -verlust	A	Q		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+69	2980	Eigene Kapitalanteile	A	Q		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+70	3	BETRIEBLICHER ERTRAG AUS LIEFERUNGEN UND LEISTUNGEN	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+71	30	PRODUKTIONSERLÖSE	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+72	3000	Produktionserlöse	A	I	AR_amount:IC_sale	0	\N	\N	1	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	1
+73	32	HANDELSERLÖSE	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+74	3200	Handelserlöse	A	I	AR_amount:IC_sale	0	\N	\N	1	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	1
+75	34	DIENSTLEISTUNGSERLÖSE	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+76	3400	Dienstleistungserlöse	A	I	AR_amount:IC_income	0	\N	\N	1	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	1
+77	36	ÜBRIGE ERLÖSE AUS LIEFERUNGEN UND LEISTUNGEN	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+78	3600	Übrige Erlöse aus Lieferungen und Leistungen	A	I	IC_income	0	\N	\N	1	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	1
+79	37	EIGENLEISTUNGEN UND EIGENVERBRAUCH	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+80	3700	Eigenleistungen	A	I		0	\N	\N	1	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	1
+81	38	ERLÖSMINDERUNGEN	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+82	3800	Skonti	A	E	AR_paid	0	\N	\N	1	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	1
+83	3801	Rabatte, Preisnachlässe	A	E	AR_paid	0	\N	\N	1	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	1
+84	3805	Verluste aus Forderungen	A	E	AR_paid	0	\N	\N	1	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	1
+85	3809	MWST - nur Saldosteuersatz	A	E	AR_paid	0	\N	\N	1	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	1
+86	39	BESTANDESÄNDERUNGEN AN UNFERTIGEN UND FERTIGEN ERZEUGNISSEN SOWIE AN NICHT FAKTURIERTEN DIENSTLEISTUNGEN	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+87	3900	Bestandesänderungen	A	I		0	\N	\N	1	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	1
+88	4	AUFWAND FÜR MATERIAL, HANDELSWAREN, DIENSTLEISTUNGEN UND ENERGIE	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+89	40	MATERIALAUFWAND	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+90	4000	Materialeinkauf	A	E	AP_amount:IC_cogs	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+91	42	HANDELSWARENAUFWAND	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+92	4200	Einkauf Handelswaren	A	E	AP_amount:IC_cogs	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+93	4208	Bestandsänderungen Handelswaren	A	E	AP_amount:IC_cogs	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+94	44	AUFWAND FÜR BEZOGENE DRITTLEISTUNGEN	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+95	4400	Aufwand für Drittleistungen	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+96	45	ENERGIEAUFWAND ZUR LEISTUNGSERSTELLUNG	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+97	4500	Energieaufwand zur Leistungserstellung	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+98	46	ÜBRIGER AUFWAND FÜR MATERIAL, HANDELSWAREN UND DIENSTLEISTUNGEN	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+99	47	DIREKTE EINKAUFSSPESEN	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+100	4700	Einkaufsspesen	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+101	48	BESTANDESÄNDERUNGEN UND MATERIAL-/WARENVERLUSTE	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+102	4800	Bestandesänderungen	A	E		0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+103	49	EINKAUFSPREISMINDERUNGEN	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+104	4900	Skonti, Rabatte, Preisnachlässe	A	I	AP_paid	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+105	5	PERSONALAUFWAND	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+106	500	Löhne und Gehälter	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+107	5000	Löhne und Gehälter	A	E	IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+108	5001	Erfolgsbeteiligungen	A	E	IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+109	5005	Leistungen von Sozialversicherungen	A	I	IC_income	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+110	57	SOZIALVERSICHERUNGSAUFWAND	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+111	5700	AHV, IV, EO, ALV	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+112	5710	FAK	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+113	5720	Berufliche Vorsorge	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+114	5730	Unfallversicherung	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+115	5740	Krankentaggeldversicherung	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+116	5790	Quellensteuer	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+117	58	ÜBRIGER PERSONALAUFWAND	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+118	5800	Aufwand für Personaleinstellung	A	E	IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+119	5810	Weiterbildungskosten	A	E	IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+120	5830	Spesen	A	E	IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+121	5880	Sonstiger Personalaufwand	A	E	IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+122	59	LEISTUNGEN DRITTER	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+123	6	ÜBRIGER BETRIEBLICHER AUFWAND, ABSCHREIBUNGEN UND WERTBERICHTIGUNGEN SOWIE FINANZERGEBNIS	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+124	60	RAUMAUFWAND	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+125	6000	Miete	A	E	IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+126	6040	Reinigung	A	E	IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+127	6050	Übriger Raumaufwand	A	E	IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+128	61	UNTERHALT, REPARATUREN, ERSATZ, LEASING, MOBILE SACHANLAGEN	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+129	6100	Unterhalt	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+130	62	FAHRZEUG- UND TRANSPORTAUFWAND	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+131	6200	Fahrzeugaufwand	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+132	6201	Transportaufwand	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+133	63	SACHVERSICHERUNGEN, ABGABEN, GEBÜHREN, BEWILLIGUNGEN	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+134	6300	Betriebsversicherungen	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+135	6360	Abgaben, Gebühren und Bewilligungen	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+136	64	ENERGIE- UND ENTSORGUNGSAUFWAND	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+137	6400	Strom, Gas, Wasser	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+138	6460	Entsorgungsaufwand	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+139	65	VERWALTUNGS- UND INFORMATIKAUFWAND	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+140	6500	Büromaterial, Drucksachen	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+141	6503	Fachliteratur	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+142	6510	Telefon, Fax, Porti Internet	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+143	6520	Beiträge, Spenden	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+144	6530	Buchführungs- und Beratungsaufwand	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+145	6540	Verwaltungsrat, GV, Revision	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+146	6570	Informatikaufwand	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+147	6590	Übriger Verwaltungsaufwand	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+148	66	WERBEAUFWAND	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+149	6600	Werbeaufwand	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+151	6720	Forschung und Entwicklung	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+152	6790	Übriger Betriebsaufwand	A	E	AP_amount:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+153	68	ABSCHREIBUNGEN UND WERTBERICHTIGUNGEN AUF POSITIONEN DES ANLAGEVERMÖGENS	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+154	6800	Abschreibungen Finanzanlagen	A	E		0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+155	6810	Abschreibungen Beteiligungen	A	E		0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+156	6820	Abschreibungen mobile Sachanlagen	A	E		0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+157	6840	Abschreibungen immaterielle Anlagen	A	E		0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+158	69	FINANZAUFWAND UND FINANZERTRAG	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+159	690	Finanzaufwand	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+160	6900	Finanzaufwand	A	E		0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+161	6940	Bankspesen	A	E		0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+162	6942	Kursverluste	A	E		0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+163	6943	Rundungsaufwand	A	E	AP_amount:IC_cogs:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+164	695	Finanzertrag	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+165	6950	Finanzertrag	A	I		0	\N	\N	1	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	1
+166	6952	Kursgewinne	A	I		0	\N	\N	1	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	1
+167	6953	Rundungsertrag	A	I	AR_amount:IC_sale:IC_income	0	\N	\N	1	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	1
+168	6970	Mitgliederbeiträge	A	I	AR_amount:IC_income	0	\N	\N	1	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	1
+169	6980	Spenden	A	I	AR_amount:IC_income	0	\N	\N	1	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	1
+170	7	BETRIEBLICHER NEBENERFOLG	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+171	70	ERFOLG AUS NEBENBETRIEBEN	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+172	75	ERFOLG AUS BETRIEBLICHEN LIEGENSCHAFTEN	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+173	8	BETRIEBSFREMDER, AUSSERORDENTLICHER, EINMALIGER UND PERIODENFREMDER AUFWAND UND ERTRAG	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+174	80	BETRIEBSFREMDER AUFWAND UND BETRIEBSFREMDER ERTRAG	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+175	8000	Betriebsfremder Aufwand	A	E	AP_amount:IC_cogs:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+176	8100	Betriebsfremder Ertrag	A	I	AR_amount:IC_sale:IC_income	0	\N	\N	1	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	1
+177	85	AUSSERORDENTLICHER, EINMALIGER AUFWAND UND ERTRAG	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+178	8500	Ausserordentlicher Aufwand	A	E	AP_amount:IC_cogs:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+179	8510	Ausserordentlicher Ertrag	A	I	AR_amount:IC_sale:IC_income	0	\N	\N	1	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	1
+180	87	PERIODENFREMDER AUFWAND UND ERTRAG	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+181	8700	Periodenfremder Aufwand	A	E	AP_amount:IC_cogs:IC_expense	0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+182	8710	Periodenfremder Ertrag	A	I	AR_amount:IC_sale:IC_income	0	\N	\N	1	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	1
+183	89	DIREKTE STEUERN	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+184	8900	Direkte Steuern	A	E		0	\N	\N	6	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	6
+185	9	ABSCHLUSS	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+186	90	ERFOLGSRECHNUNG	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+187	91	BILANZ	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+188	9100	Eröffnungsbilanz	A	E		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+189	92	GEWINNVERWENDUNG	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+190	95	JAHRESERGEBNISSE	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+191	99	HILFSKONTEN NEBENBÜCHER	H	 		0	\N	\N	\N	f	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.564047	\N	2011-01-01	\N
+\.
+
+
+--
+-- Data for Name: contact_departments; Type: TABLE DATA; Schema: public; Owner: kivitendo
+--
+
+COPY public.contact_departments (id, description) FROM stdin;
+\.
+
+
+--
+-- Data for Name: contact_titles; Type: TABLE DATA; Schema: public; Owner: kivitendo
+--
+
+COPY public.contact_titles (id, description) FROM stdin;
 \.
 
 
@@ -6478,8 +6836,8 @@ COPY public.custom_variables_validity (id, config_id, trans_id, itime) FROM stdi
 -- Data for Name: customer; Type: TABLE DATA; Schema: public; Owner: kivitendo
 --
 
-COPY public.customer (id, name, department_1, department_2, street, zipcode, city, country, contact, phone, fax, homepage, email, notes, discount, taxincluded, creditlimit, customernumber, cc, bcc, business_id, taxnumber, account_number, bank_code, bank, language, itime, mtime, obsolete, username, user_password, salesman_id, c_vendor_id, language_id, payment_id, taxzone_id, greeting, ustid, iban, bic, direct_debit, depositor, taxincluded_checked, mandator_id, mandate_date_of_signature, delivery_term_id, hourly_rate, currency_id, gln, pricegroup_id, order_lock, commercial_court, invoice_mail, contact_origin, delivery_order_mail) FROM stdin;
-410	Orbital			Orbitalstrasse 5	7890	KSP Space Center	Kerbin							0	\N	0.00000	1			\N					\N	2019-10-15 11:48:33.077443	\N	f			\N		\N	\N	4	Prof. Dr.				f		\N		\N	\N	100.00	1		\N	f				
+COPY public.customer (id, name, department_1, department_2, street, zipcode, city, country, contact, phone, fax, homepage, email, notes, discount, taxincluded, creditlimit, customernumber, cc, bcc, business_id, taxnumber, account_number, bank_code, bank, language, itime, mtime, obsolete, username, user_password, salesman_id, c_vendor_id, language_id, payment_id, taxzone_id, greeting, ustid, iban, bic, direct_debit, depositor, taxincluded_checked, mandator_id, mandate_date_of_signature, delivery_term_id, hourly_rate, currency_id, gln, pricegroup_id, order_lock, commercial_court, invoice_mail, contact_origin, delivery_order_mail, create_zugferd_invoices, natural_person) FROM stdin;
+410	Mickey Mouse			Mainstreet 6	1000	Duckhousen	Disneyland		01 1006					0	\N	0.00000	c1			\N					\N	2020-11-05 15:54:52.721257	2020-11-05 15:54:59.511713	f			\N		\N	\N	4					f		\N		\N	\N	100.00	1		\N	f					-1	t
 \.
 
 
@@ -6495,8 +6853,8 @@ COPY public.datev (beraternr, beratername, mandantennr, dfvkz, datentraegernr, a
 -- Data for Name: defaults; Type: TABLE DATA; Schema: public; Owner: kivitendo
 --
 
-COPY public.defaults (inventory_accno_id, income_accno_id, expense_accno_id, fxgain_accno_id, fxloss_accno_id, invnumber, sonumber, weightunit, businessnumber, version, closedto, revtrans, ponumber, sqnumber, rfqnumber, customernumber, vendornumber, articlenumber, servicenumber, coa, itime, mtime, rmanumber, cnnumber, accounting_method, inventory_system, profit_determination, dunning_ar_amount_fee, dunning_ar_amount_interest, dunning_ar, stocktaking_warehouse_id, stocktaking_bin_id, stocktaking_cutoff_date, pdonumber, sdonumber, stocktaking_qty_threshold, ar_paid_accno_id, id, language_id, datev_check_on_sales_invoice, datev_check_on_purchase_invoice, datev_check_on_ar_transaction, datev_check_on_ap_transaction, datev_check_on_gl_transaction, payments_changeable, is_changeable, ir_changeable, ar_changeable, ap_changeable, gl_changeable, show_bestbefore, sales_order_show_delete, purchase_order_show_delete, sales_delivery_order_show_delete, purchase_delivery_order_show_delete, is_show_mark_as_paid, ir_show_mark_as_paid, ar_show_mark_as_paid, ap_show_mark_as_paid, warehouse_id, bin_id, company, address, taxnumber, co_ustid, duns, sepa_creditor_id, templates, max_future_booking_interval, "precision", webdav, webdav_documents, vertreter, parts_show_image, parts_listing_image, parts_image_css, normalize_vc_names, normalize_part_descriptions, assemblynumber, show_weight, transfer_default, transfer_default_use_master_default_bin, transfer_default_ignore_onhand, warehouse_id_ignore_onhand, bin_id_ignore_onhand, balance_startdate_method, currency_id, customer_hourly_rate, signature, requirement_spec_section_order_part_id, transfer_default_services, rndgain_accno_id, rndloss_accno_id, global_bcc, customer_projects_only_in_sales, reqdate_interval, require_transaction_description_ps, sales_purchase_order_ship_missing_column, allow_sales_invoice_from_sales_quotation, allow_sales_invoice_from_sales_order, allow_new_purchase_delivery_order, allow_new_purchase_invoice, disabled_price_sources, bcc_to_login, transport_cost_reminder_article_number_id, is_transfer_out, ap_chart_id, ar_chart_id, create_part_if_not_found, letternumber, order_always_project, project_status_id, project_type_id, feature_balance, feature_datev, feature_erfolgsrechnung, feature_eurechnung, feature_ustva, order_warn_duplicate_parts, show_longdescription_select_item, email_journal, quick_search_modules, transfer_default_warehouse_for_assembly, feature_experimental_order, fa_bufa_nr, fa_dauerfrist, fa_steuerberater_city, fa_steuerberater_name, fa_steuerberater_street, fa_steuerberater_tel, fa_voranmeld, doc_delete_printfiles, doc_max_filesize, doc_storage, doc_storage_for_documents, doc_storage_for_attachments, doc_storage_for_images, doc_files, doc_files_rootpath, doc_webdav, shipped_qty_require_stock_out, shipped_qty_fill_up, shipped_qty_item_identity_fields, sepa_reference_add_vc_vc_id, assortmentnumber, feature_experimental_assortment, doc_storage_for_shopimages, datev_export_format, order_warn_no_deliverydate, sepa_set_duedate_as_default_exec_date, sepa_set_skonto_date_as_default_exec_date, sepa_set_skonto_date_buffer_in_days, delivery_date_interval, email_attachment_vc_files_checked, email_attachment_part_files_checked, email_attachment_record_files_checked, invoice_mail_settings, dunning_creator) FROM stdin;
-16	74	92	166	162	1	0	kg		3.1.0 CH	\N	f	0	0	0	1	0	0	0	Switzerland-deutsch-ohneMWST-2014	2019-10-15 11:37:00.716536	\N	0	0	cash	periodic	income	\N	\N	\N	\N	\N	\N	0	0	0.00000	\N	1	\N	t	t	t	t	t	0	2	2	2	2	2	f	t	t	t	t	t	t	t	t	\N	\N	\N	\N	\N	\N	\N	\N	\N	360	0.05000	f	f	f	t	f	border:0;float:left;max-width:250px;margin-top:20px:margin-right:10px;margin-left:10px;	t	t	\N	f	t	f	f	\N	\N	closedto	1	100.00	\N	\N	t	167	163		f	0	f	f	t	t	t	t	\N	f	\N	f	\N	\N	t	\N	f	\N	\N	t	t	f	t	t	t	f	2	{contact,gl_transaction}	f	t	\N	\N	\N	\N	\N	\N	\N	f	10000000	f	Filesystem	Filesystem	Filesystem	f	./documents	f	f	t	{parts_id}	f	\N	t	Filesystem	cp1252-translit	t	f	f	0	0	t	t	t	cp	current_employee
+COPY public.defaults (inventory_accno_id, income_accno_id, expense_accno_id, fxgain_accno_id, fxloss_accno_id, invnumber, sonumber, weightunit, businessnumber, version, closedto, revtrans, ponumber, sqnumber, rfqnumber, customernumber, vendornumber, articlenumber, servicenumber, coa, itime, mtime, rmanumber, cnnumber, accounting_method, inventory_system, profit_determination, dunning_ar_amount_fee, dunning_ar_amount_interest, dunning_ar, stocktaking_warehouse_id, stocktaking_bin_id, stocktaking_cutoff_date, pdonumber, sdonumber, stocktaking_qty_threshold, ar_paid_accno_id, id, language_id, datev_check_on_sales_invoice, datev_check_on_purchase_invoice, datev_check_on_ar_transaction, datev_check_on_ap_transaction, datev_check_on_gl_transaction, payments_changeable, is_changeable, ir_changeable, ar_changeable, ap_changeable, gl_changeable, show_bestbefore, sales_order_show_delete, purchase_order_show_delete, sales_delivery_order_show_delete, purchase_delivery_order_show_delete, is_show_mark_as_paid, ir_show_mark_as_paid, ar_show_mark_as_paid, ap_show_mark_as_paid, warehouse_id, bin_id, company, taxnumber, co_ustid, duns, sepa_creditor_id, templates, max_future_booking_interval, "precision", webdav, webdav_documents, vertreter, parts_show_image, parts_listing_image, parts_image_css, normalize_vc_names, normalize_part_descriptions, assemblynumber, show_weight, transfer_default, transfer_default_use_master_default_bin, transfer_default_ignore_onhand, warehouse_id_ignore_onhand, bin_id_ignore_onhand, balance_startdate_method, currency_id, customer_hourly_rate, signature, requirement_spec_section_order_part_id, transfer_default_services, rndgain_accno_id, rndloss_accno_id, global_bcc, customer_projects_only_in_sales, reqdate_interval, require_transaction_description_ps, sales_purchase_order_ship_missing_column, allow_sales_invoice_from_sales_quotation, allow_sales_invoice_from_sales_order, allow_new_purchase_delivery_order, allow_new_purchase_invoice, disabled_price_sources, bcc_to_login, transport_cost_reminder_article_number_id, is_transfer_out, ap_chart_id, ar_chart_id, create_part_if_not_found, letternumber, order_always_project, project_status_id, project_type_id, feature_balance, feature_datev, feature_erfolgsrechnung, feature_eurechnung, feature_ustva, order_warn_duplicate_parts, show_longdescription_select_item, email_journal, quick_search_modules, transfer_default_warehouse_for_assembly, feature_experimental_order, fa_bufa_nr, fa_dauerfrist, fa_steuerberater_city, fa_steuerberater_name, fa_steuerberater_street, fa_steuerberater_tel, fa_voranmeld, doc_delete_printfiles, doc_max_filesize, doc_storage, doc_storage_for_documents, doc_storage_for_attachments, doc_storage_for_images, doc_files, doc_files_rootpath, doc_webdav, shipped_qty_require_stock_out, shipped_qty_fill_up, shipped_qty_item_identity_fields, sepa_reference_add_vc_vc_id, assortmentnumber, feature_experimental_assortment, doc_storage_for_shopimages, datev_export_format, order_warn_no_deliverydate, sepa_set_duedate_as_default_exec_date, sepa_set_skonto_date_as_default_exec_date, sepa_set_skonto_date_buffer_in_days, delivery_date_interval, email_attachment_vc_files_checked, email_attachment_part_files_checked, email_attachment_record_files_checked, invoice_mail_settings, dunning_creator, address_street1, address_street2, address_zipcode, address_city, address_country, workflow_po_ap_chart_id, carry_over_account_chart_id, profit_carried_forward_chart_id, loss_carried_forward_chart_id, contact_departments_use_textfield, contact_titles_use_textfield, create_zugferd_invoices, vc_greetings_use_textfield, sales_serial_eq_charge) FROM stdin;
+16	74	92	166	162	1	1	kg		3.1.0 CH	\N	f	1	0	0	0	0	0	0	Switzerland-deutsch-ohneMWST-2014	2020-11-05 15:49:16.988454	\N	0	0	accrual	periodic	balance	\N	\N	\N	\N	\N	\N	0	0	0.00000	\N	1	\N	t	t	t	t	t	0	2	2	2	2	2	f	t	t	t	t	t	t	t	t	\N	\N	\N	\N	\N	\N	\N	\N	360	0.05000	f	f	f	t	f	border:0;float:left;max-width:250px;margin-top:20px:margin-right:10px;margin-left:10px;	t	t	\N	f	t	f	f	\N	\N	closedto	1	100.00	\N	\N	t	167	163		f	0	f	f	t	t	t	t	\N	f	\N	f	\N	\N	t	\N	f	\N	\N	t	f	t	f	f	t	f	2	{contact,gl_transaction}	f	t	\N	\N	\N	\N	\N	\N	\N	f	10000000	f	Filesystem	Filesystem	Filesystem	f	./documents	f	f	f	{parts_id}	f	\N	t	Filesystem	cp1252-translit	t	f	f	0	0	t	t	t	cp	current_employee						\N	\N	\N	\N	t	t	1	t	f
 \.
 
 
@@ -6560,7 +6918,7 @@ COPY public.dunning (id, trans_id, dunning_id, dunning_level, transdate, duedate
 -- Data for Name: dunning_config; Type: TABLE DATA; Schema: public; Owner: kivitendo
 --
 
-COPY public.dunning_config (id, dunning_level, dunning_description, active, auto, email, terms, payment_terms, fee, interest_rate, email_body, email_subject, email_attachment, template, create_invoices_for_fees) FROM stdin;
+COPY public.dunning_config (id, dunning_level, dunning_description, active, auto, email, terms, payment_terms, fee, interest_rate, email_body, email_subject, email_attachment, template, create_invoices_for_fees, print_original_invoice) FROM stdin;
 \.
 
 
@@ -6585,7 +6943,7 @@ COPY public.email_journal_attachments (id, "position", email_journal_id, name, m
 --
 
 COPY public.employee (id, login, startdate, enddate, sales, itime, mtime, name, deleted, deleted_email, deleted_signature, deleted_tel, deleted_fax) FROM stdin;
-409	cem	2019-10-15	\N	t	2019-10-15 11:47:33.50358	\N		f	\N	\N	\N	\N
+409	dduck	2020-11-05	\N	t	2020-11-05 15:52:48.557618	\N	Donald Duck	f	\N	\N	\N	\N
 \.
 
 
@@ -7343,8 +7701,15 @@ COPY public.generic_translations (id, language_id, translation_type, translation
 -- Data for Name: gl; Type: TABLE DATA; Schema: public; Owner: kivitendo
 --
 
-COPY public.gl (id, reference, description, transdate, gldate, employee_id, notes, department_id, taxincluded, itime, mtime, type, ob_transaction, cb_transaction, storno, storno_id) FROM stdin;
-1	r1	Einlage Startkapital	2019-10-15	2019-10-15	409	\N	\N	f	2019-10-15 11:50:50.874659	2019-10-15 11:50:50.874659	\N	f	f	f	\N
+COPY public.gl (id, reference, description, transdate, gldate, employee_id, notes, department_id, taxincluded, itime, mtime, type, ob_transaction, cb_transaction, storno, storno_id, deliverydate) FROM stdin;
+\.
+
+
+--
+-- Data for Name: greetings; Type: TABLE DATA; Schema: public; Owner: kivitendo
+--
+
+COPY public.greetings (id, description) FROM stdin;
 \.
 
 
@@ -7353,10 +7718,13 @@ COPY public.gl (id, reference, description, transdate, gldate, employee_id, note
 --
 
 COPY public.history_erp (id, trans_id, employee_id, addition, what_done, itime, snumbers) FROM stdin;
-411	410	409	SAVED	\N	2019-10-15 11:48:33.077443	customernumber_1
-412	1	409	POSTED	gl transaction	2019-10-15 11:50:50.874659	gltransaction_1
-414	413	409	SAVED	part	2019-10-15 11:51:58.430022	partnumber_d1
-416	2	409	POSTED	invoice	2019-10-15 11:52:10.33553	invnumber_1
+411	410	409	SAVED	\N	2020-11-05 15:54:52.721257	customernumber_c1
+412	410	409	SAVED	\N	2020-11-05 15:54:59.511713	customernumber_c1
+414	413	409	SAVED	\N	2020-11-05 15:56:41.184021	vendornumber_l1
+415	413	409	SAVED	\N	2020-11-05 15:56:46.55886	vendornumber_l1
+417	416	409	SAVED	part	2020-11-05 15:57:54.225173	partnumber_d1
+419	418	409	SAVED	part	2020-11-05 15:58:43.574574	partnumber_p1
+421	1	409	POSTED	invoice	2020-11-05 16:00:33.630992	invnumber_1
 \.
 
 
@@ -7365,6 +7733,7 @@ COPY public.history_erp (id, trans_id, employee_id, addition, what_done, itime, 
 --
 
 COPY public.inventory (warehouse_id, parts_id, oe_id, delivery_order_items_stock_id, shippingdate, employee_id, itime, mtime, bin_id, qty, trans_id, trans_type_id, project_id, chargenumber, comment, bestbefore, id, invoice_id) FROM stdin;
+423	418	\N	\N	2020-11-05	409	2020-11-05 16:03:09.687065	\N	424	5000.00000	674	395	\N	1		\N	1	\N
 \.
 
 
@@ -7373,7 +7742,7 @@ COPY public.inventory (warehouse_id, parts_id, oe_id, delivery_order_items_stock
 --
 
 COPY public.invoice (id, trans_id, parts_id, description, qty, allocated, sellprice, fxsellprice, discount, assemblyitem, project_id, deliverydate, serialnumber, itime, mtime, pricegroup_id, ordnumber, transdate, cusordnumber, unit, base_qty, subtotal, longdescription, marge_total, marge_percent, lastcost, price_factor_id, price_factor, marge_price_factor, donumber, "position", active_price_source, active_discount_source) FROM stdin;
-1	2	413	Support pauschal	1	0	150.00000	150.00000	0	f	\N	\N		2019-10-15 11:52:10.264198	2019-10-15 11:52:10.264198	\N	\N	\N	\N	pauschal	1	f		0.00000	0.00000	0.00000	\N	\N	\N	\N	1		
+1	1	418	Stembolts	500	0	2.00000	2.00000	0	f	\N	\N		2020-11-05 16:00:33.563061	2020-11-05 16:00:33.563061	\N	\N	\N	\N	Stck	500	f		1000.00000	100.00000	0.00000	\N	\N	1.00000	\N	1		
 \.
 
 
@@ -7429,7 +7798,9 @@ COPY public.notes (id, subject, body, created_by, trans_id, trans_module, itime,
 -- Data for Name: oe; Type: TABLE DATA; Schema: public; Owner: kivitendo
 --
 
-COPY public.oe (id, ordnumber, transdate, vendor_id, customer_id, amount, netamount, reqdate, taxincluded, shippingpoint, notes, employee_id, closed, quotation, quonumber, cusordnumber, intnotes, department_id, itime, mtime, shipvia, cp_id, language_id, payment_id, delivery_customer_id, delivery_vendor_id, taxzone_id, proforma, shipto_id, order_probability, expected_billing_date, globalproject_id, delivered, salesman_id, marge_total, marge_percent, transaction_description, delivery_term_id, currency_id) FROM stdin;
+COPY public.oe (id, ordnumber, transdate, vendor_id, customer_id, amount, netamount, reqdate, taxincluded, shippingpoint, notes, employee_id, closed, quotation, quonumber, cusordnumber, intnotes, department_id, itime, mtime, shipvia, cp_id, language_id, payment_id, delivery_customer_id, delivery_vendor_id, taxzone_id, proforma, shipto_id, order_probability, expected_billing_date, globalproject_id, delivered, salesman_id, marge_total, marge_percent, transaction_description, delivery_term_id, currency_id, exchangerate) FROM stdin;
+420	1	2020-11-05	\N	410	1000.00000	1000.00000	2020-11-05	t			409	t	f				\N	2020-11-05 15:59:43.271768	2020-11-05 16:00:33.563061		\N	\N	\N	\N	\N	4	f	\N	0	\N	\N	f	409	1000.00000	100.00000		\N	1	\N
+422	1	2020-11-05	413	\N	5000.00000	5000.00000	2020-11-06	f			409	f	f				\N	2020-11-05 16:02:04.793274	\N		\N	\N	\N	\N	\N	4	f	\N	0	\N	\N	f	\N	5000.00000	100.00000		\N	1	\N
 \.
 
 
@@ -7438,6 +7809,8 @@ COPY public.oe (id, ordnumber, transdate, vendor_id, customer_id, amount, netamo
 --
 
 COPY public.orderitems (trans_id, parts_id, description, qty, sellprice, discount, project_id, reqdate, ship, serialnumber, id, itime, mtime, pricegroup_id, ordnumber, transdate, cusordnumber, unit, base_qty, subtotal, longdescription, marge_total, marge_percent, lastcost, price_factor_id, price_factor, marge_price_factor, "position", active_price_source, active_discount_source) FROM stdin;
+420	418	Stembolts	500	2.00000	0	\N	\N	\N	\N	1	2020-11-05 16:00:00.014463	2020-11-05 16:00:11.192787	\N	\N	\N	\N	Stck	500	f		1000.00000	100.00000	0.00000	\N	1.00000	1.00000	1		
+422	418	Stembolts	5000	1.00000	0	\N	\N	\N	\N	2	2020-11-05 16:02:04.793274	\N	\N	\N	\N	\N	Stck	5000	f		5000.00000	100.00000	0.00000	\N	1.00000	1.00000	1		
 \.
 
 
@@ -7467,7 +7840,8 @@ COPY public.part_customer_prices (id, parts_id, customer_id, customer_partnumber
 --
 
 COPY public.parts (id, partnumber, description, listprice, sellprice, lastcost, priceupdate, weight, notes, makemodel, rop, shop, obsolete, bom, image, drawing, microfiche, partsgroup_id, ve, gv, itime, mtime, unit, formel, not_discountable, buchungsgruppen_id, payment_id, ean, price_factor_id, onhand, stockable, has_sernumber, warehouse_id, bin_id, classification_id, part_type) FROM stdin;
-413	d1	Support pauschal	0.00000	0.00000	0.00000	2019-10-15	\N		f	\N	f	f	f				\N	\N	0.00000	2019-10-15 11:51:58.430022	\N	pauschal		f	192	\N		\N	0.00000	f	f	\N	\N	0	service
+416	d1	Councelling	0.00000	100.00000	0.00000	2020-11-05	0		f	0	f	f	f				\N	\N	0.00000	2020-11-05 15:57:54.225173	\N	Std		f	192	\N		\N	0.00000	f	f	\N	\N	2	part
+418	p1	Stembolts	0.00000	2.00000	0.00000	2020-11-05	0.200000003		f	0	f	f	f				\N	\N	0.00000	2020-11-05 15:58:43.574574	2020-11-05 16:03:09.705972	Stck		f	192	\N		\N	5000.00000	f	f	423	424	2	part
 \.
 
 
@@ -7476,7 +7850,8 @@ COPY public.parts (id, partnumber, description, listprice, sellprice, lastcost, 
 --
 
 COPY public.parts_price_history (id, part_id, valid_from, lastcost, listprice, sellprice) FROM stdin;
-1	413	2019-10-15 11:51:58.430022	0.00000	0.00000	0.00000
+1	416	2020-11-05 15:57:54.225173	0.00000	0.00000	100.00000
+2	418	2020-11-05 15:58:43.574574	0.00000	0.00000	2.00000
 \.
 
 
@@ -7608,10 +7983,10 @@ COPY public.project_roles (id, name, description, "position", itime, mtime) FROM
 --
 
 COPY public.project_statuses (id, name, description, "position", itime, mtime) FROM stdin;
-1	presales	Akquise	1	2019-10-15 11:37:10.353281	\N
-2	planning	In Planung	2	2019-10-15 11:37:10.353281	\N
-3	running	In Bearbeitung	3	2019-10-15 11:37:10.353281	\N
-4	done	Fertiggestellt	4	2019-10-15 11:37:10.353281	\N
+1	presales	Akquise	1	2020-11-05 15:49:19.273965	\N
+2	planning	In Planung	2	2020-11-05 15:49:19.273965	\N
+3	running	In Bearbeitung	3	2020-11-05 15:49:19.273965	\N
+4	done	Fertiggestellt	4	2020-11-05 15:49:19.273965	\N
 \.
 
 
@@ -7639,6 +8014,8 @@ COPY public.reconciliation_links (id, bank_transaction_id, acc_trans_id, rec_gro
 --
 
 COPY public.record_links (from_table, from_id, to_table, to_id, itime, id) FROM stdin;
+orderitems	1	invoice	1	2020-11-05 16:00:33.563061	1
+oe	420	ar	1	2020-11-05 16:00:33.563061	2
 \.
 
 
@@ -7663,10 +8040,10 @@ COPY public.record_templates (id, template_name, template_type, customer_id, ven
 --
 
 COPY public.requirement_spec_acceptance_statuses (id, name, description, "position", itime, mtime) FROM stdin;
-1	accepted	Abgenommen	1	2019-10-15 11:37:08.302146	\N
-2	accepted_with_defects	Mit Mängeln abgenommen	2	2019-10-15 11:37:08.302146	\N
-3	accepted_with_defects_to_be_fixed	Mit noch zu behebenden Mängeln abgenommen	3	2019-10-15 11:37:08.302146	\N
-4	not_accepted	Nicht abgenommen	4	2019-10-15 11:37:08.302146	\N
+1	accepted	Abgenommen	1	2020-11-05 15:49:18.690093	\N
+2	accepted_with_defects	Mit Mängeln abgenommen	2	2020-11-05 15:49:18.690093	\N
+3	accepted_with_defects_to_be_fixed	Mit noch zu behebenden Mängeln abgenommen	3	2020-11-05 15:49:18.690093	\N
+4	not_accepted	Nicht abgenommen	4	2020-11-05 15:49:18.690093	\N
 \.
 
 
@@ -7675,11 +8052,11 @@ COPY public.requirement_spec_acceptance_statuses (id, name, description, "positi
 --
 
 COPY public.requirement_spec_complexities (id, description, "position", itime, mtime) FROM stdin;
-1	nicht bewertet	1	2019-10-15 11:37:08.302146	\N
-2	nur Anforderung	2	2019-10-15 11:37:08.302146	\N
-3	gering	3	2019-10-15 11:37:08.302146	\N
-4	mittel	4	2019-10-15 11:37:08.302146	\N
-5	hoch	5	2019-10-15 11:37:08.302146	\N
+1	nicht bewertet	1	2020-11-05 15:49:18.690093	\N
+2	nur Anforderung	2	2020-11-05 15:49:18.690093	\N
+3	gering	3	2020-11-05 15:49:18.690093	\N
+4	mittel	4	2020-11-05 15:49:18.690093	\N
+5	hoch	5	2020-11-05 15:49:18.690093	\N
 \.
 
 
@@ -7736,11 +8113,11 @@ COPY public.requirement_spec_predefined_texts (id, description, title, text, "po
 --
 
 COPY public.requirement_spec_risks (id, description, "position", itime, mtime) FROM stdin;
-1	nicht bewertet	1	2019-10-15 11:37:08.302146	\N
-2	nur Anforderung	2	2019-10-15 11:37:08.302146	\N
-3	gering	3	2019-10-15 11:37:08.302146	\N
-4	mittel	4	2019-10-15 11:37:08.302146	\N
-5	hoch	5	2019-10-15 11:37:08.302146	\N
+1	nicht bewertet	1	2020-11-05 15:49:18.690093	\N
+2	nur Anforderung	2	2020-11-05 15:49:18.690093	\N
+3	gering	3	2020-11-05 15:49:18.690093	\N
+4	mittel	4	2020-11-05 15:49:18.690093	\N
+5	hoch	5	2020-11-05 15:49:18.690093	\N
 \.
 
 
@@ -7749,9 +8126,9 @@ COPY public.requirement_spec_risks (id, description, "position", itime, mtime) F
 --
 
 COPY public.requirement_spec_statuses (id, name, description, "position", itime, mtime) FROM stdin;
-1	planning	In Planung	1	2019-10-15 11:37:08.302146	\N
-2	running	In Bearbeitung	2	2019-10-15 11:37:08.302146	\N
-3	done	Fertiggestellt	3	2019-10-15 11:37:08.302146	\N
+1	planning	In Planung	1	2020-11-05 15:49:18.690093	\N
+2	running	In Bearbeitung	2	2020-11-05 15:49:18.690093	\N
+3	done	Fertiggestellt	3	2020-11-05 15:49:18.690093	\N
 \.
 
 
@@ -7768,8 +8145,8 @@ COPY public.requirement_spec_text_blocks (id, requirement_spec_id, title, text, 
 --
 
 COPY public.requirement_spec_types (id, description, "position", itime, mtime, section_number_format, function_block_number_format, template_file_name) FROM stdin;
-1	Pflichtenheft	1	2019-10-15 11:37:08.302146	2019-10-15 11:37:09.709378	A00	FB000	requirement_spec
-2	Konzept	2	2019-10-15 11:37:08.302146	2019-10-15 11:37:09.709378	A00	FB000	requirement_spec
+1	Pflichtenheft	1	2020-11-05 15:49:18.690093	2020-11-05 15:49:19.065717	A00	FB000	requirement_spec
+2	Konzept	2	2020-11-05 15:49:18.690093	2020-11-05 15:49:19.065717	A00	FB000	requirement_spec
 \.
 
 
@@ -7794,445 +8171,483 @@ COPY public.requirement_specs (id, type_id, status_id, customer_id, project_id, 
 --
 
 COPY public.schema_info (tag, login, itime) FROM stdin;
-SKR04-3804-addition	\N	2019-10-15 11:37:00.894273
-acc_trans_constraints	\N	2019-10-15 11:37:00.903203
-chart_category_to_sgn	\N	2019-10-15 11:37:00.908595
-chart_names	\N	2019-10-15 11:37:00.914583
-chart_names2	\N	2019-10-15 11:37:00.920417
-customer_vendor_ustid_length	\N	2019-10-15 11:37:00.926297
-language_output_formatting	\N	2019-10-15 11:37:00.938358
-remove_obsolete_trigger	\N	2019-10-15 11:37:00.944226
-rename_buchungsgruppen_accounts_16_19_percent	\N	2019-10-15 11:37:00.950295
-sales_quotation_order_probability_expected_billing_date	\N	2019-10-15 11:37:00.986001
-tax_id_if_taxkey_is_0	\N	2019-10-15 11:37:00.991818
-units_translations_and_singular_plural_distinction	\N	2019-10-15 11:37:01.004405
-tax_primary_key_taxkeys_foreign_keys	\N	2019-10-15 11:37:01.057991
-invalid_taxkesy	\N	2019-10-15 11:37:01.093614
-release_2_4_1	\N	2019-10-15 11:37:01.099912
-PgCommaAggregateFunction	\N	2019-10-15 11:37:01.106045
-ap_ar_orddate_quodate	\N	2019-10-15 11:37:01.111925
-buchungsgruppen_sortkey	\N	2019-10-15 11:37:01.117884
-customer_vendor_taxzone_id	\N	2019-10-15 11:37:01.125377
-drafts	\N	2019-10-15 11:37:01.135456
-employee_no_limits	\N	2019-10-15 11:37:01.18912
-globalprojectnumber_ap_ar_oe	\N	2019-10-15 11:37:01.229243
-oe_delivered	\N	2019-10-15 11:37:01.244233
-oe_is_salesman	\N	2019-10-15 11:37:01.250075
-parts_ean	\N	2019-10-15 11:37:01.260984
-payment_terms_sortkey	\N	2019-10-15 11:37:01.267956
-payment_terms_translation	\N	2019-10-15 11:37:01.274559
-project	\N	2019-10-15 11:37:01.30393
-status_history	\N	2019-10-15 11:37:01.30984
-units_sortkey	\N	2019-10-15 11:37:01.320836
-history_erp	\N	2019-10-15 11:37:01.328331
-marge_initial	\N	2019-10-15 11:37:01.395543
-ustva_setup_2007	\N	2019-10-15 11:37:01.405711
-history_erp_snumbers	\N	2019-10-15 11:37:01.411517
-tax_description_without_percentage_skr04	\N	2019-10-15 11:37:01.417545
-ustva_setup_2007_update_chart_taxkeys_tax	\N	2019-10-15 11:37:01.429549
-fix_taxdescription	\N	2019-10-15 11:37:01.453286
-ustva_setup_2007_update_chart_taxkeys_tax_add_missing_tax_accounts	\N	2019-10-15 11:37:01.465306
-tax_description_without_percentage	\N	2019-10-15 11:37:01.471108
-release_2_4_2	\N	2019-10-15 11:37:01.482879
-COA_Account_Settings001	\N	2019-10-15 11:37:01.489042
-COA_Account_Settings002	\N	2019-10-15 11:37:01.49494
-USTVA_abstraction	\N	2019-10-15 11:37:01.50288
-ap_storno	\N	2019-10-15 11:37:01.674307
-ar_storno	\N	2019-10-15 11:37:01.680083
-cb_ob_transaction	\N	2019-10-15 11:37:01.686048
-dunning_config_interest_rate	\N	2019-10-15 11:37:01.691958
-dunning_dunning_id	\N	2019-10-15 11:37:01.697944
-dunning_invoices_for_fees	\N	2019-10-15 11:37:01.710059
-gl_storno	\N	2019-10-15 11:37:01.721074
-invalid_taxkeys_2	\N	2019-10-15 11:37:01.73401
-transaction_description	\N	2019-10-15 11:37:01.73994
-USTVA_at	\N	2019-10-15 11:37:01.748623
-ar_ap_storno_id	\N	2019-10-15 11:37:01.752137
-dunning_invoices_per_dunning_level	\N	2019-10-15 11:37:01.757808
-tax_report_table_name	\N	2019-10-15 11:37:01.763815
-release_2_4_3	\N	2019-10-15 11:37:01.769702
-acc_trans_without_oid	\N	2019-10-15 11:37:01.775686
-bank_accounts	\N	2019-10-15 11:37:01.951604
-change_makemodel_vendor_id	\N	2019-10-15 11:37:02.009524
-custom_variables	\N	2019-10-15 11:37:02.015263
-direct_debit	\N	2019-10-15 11:37:02.123127
-follow_ups	\N	2019-10-15 11:37:02.128856
-oe_employee_id_foreignkey	\N	2019-10-15 11:37:02.273369
-price_factors	\N	2019-10-15 11:37:02.278784
-sic_code	\N	2019-10-15 11:37:02.339067
-todo_config	\N	2019-10-15 11:37:02.346297
-trigger_assembly_update_lastcost	\N	2019-10-15 11:37:02.35116
-units_no_type_distinction	\N	2019-10-15 11:37:02.363098
-warehouse	\N	2019-10-15 11:37:02.370155
-add_stocktaking_preselects_client_config_default	\N	2019-10-15 11:37:02.515707
-delivery_orders	\N	2019-10-15 11:37:02.526064
-transfer_type_shipped	\N	2019-10-15 11:37:02.708607
-transfer_type_stocktaking	\N	2019-10-15 11:37:02.71607
-warehouse2	\N	2019-10-15 11:37:02.723318
-add_stocktaking_qty_threshold_client_config_default	\N	2019-10-15 11:37:02.732197
-ar_add_donumber	\N	2019-10-15 11:37:02.745791
-ar_add_invnumber_for_credit_note	\N	2019-10-15 11:37:02.756146
-check_bin_belongs_to_wh_trigger	\N	2019-10-15 11:37:02.76397
-record_links	\N	2019-10-15 11:37:02.777102
-transaction_description_not_null	\N	2019-10-15 11:37:02.866907
-release_2_6_0	\N	2019-10-15 11:37:02.875273
-auth_enable_sales_all_edit	\N	2019-10-15 11:37:02.883476
-custom_variables_parts_services_assemblies	\N	2019-10-15 11:37:02.890437
-custom_variables_valid	\N	2019-10-15 11:37:02.899325
-delivery_orders_fields_for_invoices	\N	2019-10-15 11:37:02.932129
-fix_acc_trans_ap_taxkey_bug	\N	2019-10-15 11:37:02.941452
-fix_datepaid	\N	2019-10-15 11:37:02.97701
-generic_translations	\N	2019-10-15 11:37:02.986074
-has_sernumber	\N	2019-10-15 11:37:03.073515
-rundungsfehler_korrigieren_BUG1328-2	\N	2019-10-15 11:37:03.082502
-sepa	\N	2019-10-15 11:37:03.091952
-update_date_paid	\N	2019-10-15 11:37:03.152315
-warehouse3	\N	2019-10-15 11:37:03.159579
-warehouse_add_bestbefore	\N	2019-10-15 11:37:03.165409
-add_depositor_for_customer_vendor	\N	2019-10-15 11:37:03.171629
-add_more_constraints_fibu_projekt_xplace3	\N	2019-10-15 11:37:03.207014
-cp_greeting_migration	\N	2019-10-15 11:37:03.219047
-release_2_6_1	\N	2019-10-15 11:37:03.225307
-acc_trans_id_uniqueness	\N	2019-10-15 11:37:03.239159
-add_ar_paid_defaults	\N	2019-10-15 11:37:03.247755
-add_makemodel_prices	\N	2019-10-15 11:37:03.260967
-csv_import_profiles	\N	2019-10-15 11:37:03.269986
-customer_long_entries	\N	2019-10-15 11:37:03.432895
-drop_yearend	\N	2019-10-15 11:37:03.448901
-emmvee_background_jobs	\N	2019-10-15 11:37:03.456628
-invalid_entries_in_custom_variables_validity	\N	2019-10-15 11:37:03.570266
-payment_terms_translation2	\N	2019-10-15 11:37:03.579378
-periodic_invoices	\N	2019-10-15 11:37:03.595156
-schema_normalization_1	\N	2019-10-15 11:37:03.65998
-sepa_in	\N	2019-10-15 11:37:03.766194
-shipto_add_cp_gender	\N	2019-10-15 11:37:03.777531
-skr03_04_bwa_zuordnung_konten_4250_4610	\N	2019-10-15 11:37:03.791816
-skr04_fix_category_3151_3160_3170	\N	2019-10-15 11:37:03.80143
-ustva_2010	\N	2019-10-15 11:37:03.809764
-auto_delete_sepa_export_items_on_ap_ar_deletion	\N	2019-10-15 11:37:03.819777
-csv_import_profiles_2	\N	2019-10-15 11:37:03.841116
-delete_translations_on_payment_term_delete	\N	2019-10-15 11:37:03.849317
-emmvee_background_jobs_2	\N	2019-10-15 11:37:04.097194
-periodic_invoices_background_job	\N	2019-10-15 11:37:04.137349
-periodic_invoices_first_billing_date	\N	2019-10-15 11:37:04.145151
-schema_normalization_2	\N	2019-10-15 11:37:04.1528
-background_jobs_3	\N	2019-10-15 11:37:05.395038
-csv_import_report_cache	\N	2019-10-15 11:37:05.401439
-csv_mt940_add_profile	\N	2019-10-15 11:37:05.599826
-re_add_sepa_export_items_foreign_keys	\N	2019-10-15 11:37:05.611131
-schema_normalization_3	\N	2019-10-15 11:37:05.621373
-csv_import_reports_add_numheaders	\N	2019-10-15 11:37:05.652091
-release_2_6_2	\N	2019-10-15 11:37:05.659586
-chart_taxkey_id_from_taxkeys	\N	2019-10-15 11:37:05.671358
-custom_variables_indices	\N	2019-10-15 11:37:05.695952
-custom_variables_indices_2	\N	2019-10-15 11:37:05.753684
-units_id	\N	2019-10-15 11:37:05.789817
-release_2_6_3	\N	2019-10-15 11:37:05.8827
-auth_enable_ct_all_edit	\N	2019-10-15 11:37:05.8884
-auth_enable_edit_prices	\N	2019-10-15 11:37:05.893775
-customer_add_constraints	\N	2019-10-15 11:37:05.898744
-customer_vendor_add_currency	\N	2019-10-15 11:37:05.91082
-defaults_add_language_id	\N	2019-10-15 11:37:05.916687
-delivery_order_items_add_pricegroup_id	\N	2019-10-15 11:37:05.922659
-department_drop_role	\N	2019-10-15 11:37:05.92862
-drop_datevexport	\N	2019-10-15 11:37:05.934651
-employee_deleted	\N	2019-10-15 11:37:05.940621
-license_invoice_drop	\N	2019-10-15 11:37:05.946551
-oe_customer_vendor_fkeys	\N	2019-10-15 11:37:05.957698
-parts_add_unit_foreign_key	\N	2019-10-15 11:37:05.968508
-umstellung_eur	\N	2019-10-15 11:37:05.980096
-ustva_2010_fixes	\N	2019-10-15 11:37:05.988589
-vendor_add_constraints	\N	2019-10-15 11:37:05.994478
-warehouse_alter_chargenumber	\N	2019-10-15 11:37:06.006484
-release_2_7_0	\N	2019-10-15 11:37:06.012432
-chart_type_skonto	\N	2019-10-15 11:37:06.01847
-contacts_add_street_and_zipcode_and_city	\N	2019-10-15 11:37:06.03069
-contacts_convert_cp_birthday_to_date	\N	2019-10-15 11:37:06.037076
-convert_curr_to_text	\N	2019-10-15 11:37:06.042313
-custom_variables_sub_module_not_null	\N	2019-10-15 11:37:07.053535
-customer_add_taxincluded_checked	\N	2019-10-15 11:37:07.075693
-customer_vendor_phone_no_limits	\N	2019-10-15 11:37:07.087325
-defaults_datev_check	\N	2019-10-15 11:37:07.095328
-defaults_posting_config	\N	2019-10-15 11:37:07.106859
-defaults_posting_records_config	\N	2019-10-15 11:37:07.114544
-defaults_show_bestbefore	\N	2019-10-15 11:37:07.1249
-defaults_show_delete_on_orders	\N	2019-10-15 11:37:07.130557
-defaults_show_mark_as_paid_config	\N	2019-10-15 11:37:07.139971
-finanzamt_update_fa_bufa_nr_hamburg	\N	2019-10-15 11:37:07.159803
-record_links_post_delete_triggers	\N	2019-10-15 11:37:07.18542
-rename_buchungsgruppe_16_19_to_19	\N	2019-10-15 11:37:07.211881
-self_test_background_job	\N	2019-10-15 11:37:07.545595
-ustva_setup_2007_update_chart_taxkeys_tax_skr04	\N	2019-10-15 11:37:07.554619
-customer_add_taxincluded_checked_2	\N	2019-10-15 11:37:07.567334
-record_links_post_delete_triggers2	\N	2019-10-15 11:37:07.581558
-release_3_0_0	\N	2019-10-15 11:37:07.591242
-acc_trans_booleans_not_null	\N	2019-10-15 11:37:07.597328
-accounts_tax_office_bad_homburg	\N	2019-10-15 11:37:07.607031
-add_chart_link_to_acc_trans	\N	2019-10-15 11:37:07.61877
-add_customer_mandator_id	\N	2019-10-15 11:37:07.627099
-add_fk_to_gl	\N	2019-10-15 11:37:07.642595
-add_warehouse_defaults	\N	2019-10-15 11:37:07.651054
-ap_add_direct_debit	\N	2019-10-15 11:37:07.663146
-ap_deliverydate	\N	2019-10-15 11:37:07.671141
-ar_add_direct_debit	\N	2019-10-15 11:37:07.67851
-ar_ap_foreign_keys	\N	2019-10-15 11:37:07.686918
-ar_ap_gl_delete_triggers_deletion_from_acc_trans	\N	2019-10-15 11:37:07.719586
-background_job_change_create_periodic_invoices_to_daily	\N	2019-10-15 11:37:07.744552
-charts_without_taxkey	\N	2019-10-15 11:37:07.751118
-cleanup_after_customer_vendor_deletion	\N	2019-10-15 11:37:07.759434
-clients	\N	2019-10-15 11:37:07.773263
-contacts_add_cp_position	\N	2019-10-15 11:37:07.783285
-custom_variable_configs_column_type_text	\N	2019-10-15 11:37:07.792157
-custom_variables_validity_index	\N	2019-10-15 11:37:07.809678
-defaults_add_max_future_booking_intervall	\N	2019-10-15 11:37:07.864614
-defaults_add_precision	\N	2019-10-15 11:37:07.872603
-defaults_feature	\N	2019-10-15 11:37:07.881479
-defaults_feature2	\N	2019-10-15 11:37:07.900507
-del_exchangerate	\N	2019-10-15 11:37:07.908657
-delete_close_follow_ups_when_order_is_deleted_closed_fkey_deletion	\N	2019-10-15 11:37:07.918537
-delete_customertax_vendortax_partstax	\N	2019-10-15 11:37:07.93023
-delete_translations_on_tax_delete	\N	2019-10-15 11:37:07.948408
-delivery_terms	\N	2019-10-15 11:37:07.956647
-drop_audittrail	\N	2019-10-15 11:37:08.026182
-drop_dpt_trans	\N	2019-10-15 11:37:08.035114
-drop_gifi	\N	2019-10-15 11:37:08.047054
-drop_rma	\N	2019-10-15 11:37:08.058594
-employee_drop_columns	\N	2019-10-15 11:37:08.068894
-erzeugnisnummern	\N	2019-10-15 11:37:08.081426
-first_aggregator	\N	2019-10-15 11:37:08.112361
-fix_datepaid_for_sepa_transfers	\N	2019-10-15 11:37:08.126469
-gewichte	\N	2019-10-15 11:37:08.133716
-gl_add_employee_foreign_key	\N	2019-10-15 11:37:08.142063
-invoice_add_donumber	\N	2019-10-15 11:37:08.156049
-oe_delivery_orders_foreign_keys	\N	2019-10-15 11:37:08.163472
-orderitems_delivery_order_items_invoice_foreign_keys	\N	2019-10-15 11:37:08.193357
-parts_translation_foreign_keys	\N	2019-10-15 11:37:08.214391
-project_customer_type_valid	\N	2019-10-15 11:37:08.232984
-project_types	\N	2019-10-15 11:37:08.241685
-requirement_specs	\N	2019-10-15 11:37:08.302146
-rm_whitespaces	\N	2019-10-15 11:37:09.077054
-add_tax_id_to_acc_trans	\N	2019-10-15 11:37:09.085524
-add_warehouse_client_config_default	\N	2019-10-15 11:37:09.095829
-balance_startdate_method	\N	2019-10-15 11:37:09.107881
-currencies	\N	2019-10-15 11:37:09.117238
-custom_variables_delete_via_trigger	\N	2019-10-15 11:37:09.224696
-default_bin_parts	\N	2019-10-15 11:37:09.238189
-defaults_customer_hourly_rate	\N	2019-10-15 11:37:09.247084
-defaults_signature	\N	2019-10-15 11:37:09.252997
-delete_close_follow_ups_when_order_is_deleted_closed	\N	2019-10-15 11:37:09.258877
-delete_cust_vend_tax	\N	2019-10-15 11:37:09.28061
-delete_translations_on_delivery_term_delete	\N	2019-10-15 11:37:09.288939
-drop_gifi_2	\N	2019-10-15 11:37:09.298268
-oe_do_delete_via_trigger	\N	2019-10-15 11:37:09.304825
-project_bob_attributes	\N	2019-10-15 11:37:09.367856
-remove_role_from_employee	\N	2019-10-15 11:37:09.579645
-requirement_spec_items_item_type_index	\N	2019-10-15 11:37:09.587616
-requirement_spec_items_price_factor	\N	2019-10-15 11:37:09.619561
-requirement_spec_items_update_trigger_fix	\N	2019-10-15 11:37:09.625436
-requirement_spec_pictures	\N	2019-10-15 11:37:09.638219
-requirement_spec_predefined_texts_for_sections	\N	2019-10-15 11:37:09.69007
-requirement_spec_types_number_formats	\N	2019-10-15 11:37:09.697377
-requirement_spec_types_template_file_name	\N	2019-10-15 11:37:09.709378
-requirement_specs_print_templates	\N	2019-10-15 11:37:09.719611
-requirement_specs_section_templates	\N	2019-10-15 11:37:09.727298
-tax_constraints	\N	2019-10-15 11:37:09.73456
-add_fkey_tax_id_to_acc_trans	\N	2019-10-15 11:37:09.787193
-custom_variables_delete_via_trigger_2	\N	2019-10-15 11:37:09.79322
-custom_variables_delete_via_trigger_requirement_specs	\N	2019-10-15 11:37:09.799151
-project_bob_attributes_itime_default_fix	\N	2019-10-15 11:37:09.804893
-requirement_spec_delete_trigger_fix	\N	2019-10-15 11:37:09.816279
-requirement_spec_type_for_template_fix	\N	2019-10-15 11:37:09.834933
-requirement_specs_orders	\N	2019-10-15 11:37:09.840743
-steuerfilterung	\N	2019-10-15 11:37:09.909063
-unit_foreign_key_for_line_items	\N	2019-10-15 11:37:09.919378
-project_bob_attributes_fix_project_status_table_name	\N	2019-10-15 11:37:09.931383
-release_3_1_0	\N	2019-10-15 11:37:09.937379
-requirement_spec_delete_trigger_fix2	\N	2019-10-15 11:37:09.943369
-requirement_spec_items_update_trigger_fix2	\N	2019-10-15 11:37:09.968243
-add_warehouse_client_config_default2	\N	2019-10-15 11:37:09.980152
-background_jobs_clean_auth_sessions	\N	2019-10-15 11:37:10.020839
-bank_accounts_add_name	\N	2019-10-15 11:37:10.027933
-column_type_text_instead_of_varchar	\N	2019-10-15 11:37:10.036138
-custom_variable_partsgroups	\N	2019-10-15 11:37:10.048474
-defaults_add_delivery_plan_config	\N	2019-10-15 11:37:10.082976
-defaults_add_rnd_accno_ids	\N	2019-10-15 11:37:10.089876
-defaults_global_bcc	\N	2019-10-15 11:37:10.098579
-defaults_only_customer_projects_in_sales	\N	2019-10-15 11:37:10.105522
-defaults_reqdate_interval	\N	2019-10-15 11:37:10.11423
-defaults_require_transaction_description	\N	2019-10-15 11:37:10.122504
-defaults_sales_purchase_order_show_ship_missing_column	\N	2019-10-15 11:37:10.131668
-defaults_sales_purchase_process_limitations	\N	2019-10-15 11:37:10.140579
-defaults_transport_cost_reminder	\N	2019-10-15 11:37:10.152646
-delete_cvars_on_trans_deletion	\N	2019-10-15 11:37:10.160215
-invoice_positions	\N	2019-10-15 11:37:10.183896
-orderitems_delivery_order_items_positions	\N	2019-10-15 11:37:10.191875
-periodic_invoices_order_value_periodicity	\N	2019-10-15 11:37:10.201329
-price_rules	\N	2019-10-15 11:37:10.238017
-price_source_client_config	\N	2019-10-15 11:37:10.347477
-project_status_default_entries	\N	2019-10-15 11:37:10.353281
-record_links_orderitems_delete_triggers	\N	2019-10-15 11:37:10.36305
-recorditem_active_price_source	\N	2019-10-15 11:37:10.371206
-remove_redundant_customer_vendor_delete_triggers	\N	2019-10-15 11:37:10.38084
-requirement_spec_edit_html	\N	2019-10-15 11:37:10.389956
-requirement_spec_parts	\N	2019-10-15 11:37:10.401484
-taxzone_charts	\N	2019-10-15 11:37:10.455978
-vendor_long_entries	\N	2019-10-15 11:37:10.491645
-warehouse_add_delivery_order_items_stock_id	\N	2019-10-15 11:37:10.500758
-column_type_text_instead_of_varchar2	\N	2019-10-15 11:37:10.509961
-convert_taxzone	\N	2019-10-15 11:37:10.519589
-defaults_bcc_to_login	\N	2019-10-15 11:37:10.530742
-defaults_drop_delivery_plan_calculate_transferred_do	\N	2019-10-15 11:37:10.536621
-defaults_transport_cost_reminder_id	\N	2019-10-15 11:37:10.542555
-delete_cvars_on_trans_deletion_fix1	\N	2019-10-15 11:37:10.549257
-oe_ar_ap_delivery_orders_edit_notes_as_html	\N	2019-10-15 11:37:10.558937
-price_rules_cascade_delete	\N	2019-10-15 11:37:10.566535
-recorditem_active_record_source	\N	2019-10-15 11:37:10.575376
-remove_redundant_cvar_delete_triggers	\N	2019-10-15 11:37:10.587138
-requirement_spec_parts_foreign_key_cascade	\N	2019-10-15 11:37:10.599267
-taxzone_sortkey	\N	2019-10-15 11:37:10.608842
-transfer_out_sales_invoice	\N	2019-10-15 11:37:10.617221
-ar_ap_fix_notes_as_html_for_non_invoices	\N	2019-10-15 11:37:10.627069
-column_type_text_instead_of_varchar3	\N	2019-10-15 11:37:10.635152
-delete_cvars_on_trans_deletion_fix2	\N	2019-10-15 11:37:10.643437
-price_rules_discount	\N	2019-10-15 11:37:10.650108
-taxzone_default_id	\N	2019-10-15 11:37:10.656039
-change_taxzone_id_0	\N	2019-10-15 11:37:10.662629
-tax_zones_obsolete	\N	2019-10-15 11:37:10.679074
-taxzone_id_in_oe_delivery_orders	\N	2019-10-15 11:37:10.686078
-release_3_2_0	\N	2019-10-15 11:37:10.698083
-ar_ap_default	\N	2019-10-15 11:37:10.703983
-bank_accounts_unique_chart_constraint	\N	2019-10-15 11:37:10.715037
-bank_transactions	\N	2019-10-15 11:37:10.748551
-bankaccounts_reconciliation	\N	2019-10-15 11:37:10.804944
-bankaccounts_sortkey_and_obsolete	\N	2019-10-15 11:37:10.81182
-create_part_if_not_found	\N	2019-10-15 11:37:10.823099
-defaults_drop_delivery_plan_config	\N	2019-10-15 11:37:10.829675
-delete_invalidated_custom_variables_for_parts	\N	2019-10-15 11:37:10.835857
-invoices_amount_paid_not_null	\N	2019-10-15 11:37:10.844582
-letter	\N	2019-10-15 11:37:10.860061
-payment_terms_automatic_calculation	\N	2019-10-15 11:37:10.925779
-remove_terms_add_payment_id	\N	2019-10-15 11:37:10.934353
-sepa_items_payment_type	\N	2019-10-15 11:37:10.95229
-tax_skonto_automatic	\N	2019-10-15 11:37:10.961228
-automatic_reconciliation	\N	2019-10-15 11:37:10.979402
-bank_transactions_type	\N	2019-10-15 11:37:11.013722
-letter_country_page	\N	2019-10-15 11:37:11.021108
-letter_date_type	\N	2019-10-15 11:37:11.027037
-letter_draft	\N	2019-10-15 11:37:11.036531
-letter_reference	\N	2019-10-15 11:37:11.092112
-auto_delete_reconciliation_links_on_acc_trans_deletion	\N	2019-10-15 11:37:11.099487
-bank_transactions_type2	\N	2019-10-15 11:37:11.119971
-letter_emplyee_salesman	\N	2019-10-15 11:37:11.127261
-use_html_in_letter	\N	2019-10-15 11:37:11.135344
-letter_notes_internal	\N	2019-10-15 11:37:11.143815
-letter_cp_id	\N	2019-10-15 11:37:11.151071
-release_3_3_0	\N	2019-10-15 11:37:11.164576
-add_project_defaults	\N	2019-10-15 11:37:11.170659
-buchungsgruppen_forein_keys	\N	2019-10-15 11:37:11.183191
-chart_pos_er	\N	2019-10-15 11:37:11.19297
-customer_vendor_shipto_add_gln	\N	2019-10-15 11:37:11.208053
-defaults_add_features	\N	2019-10-15 11:37:11.216391
-defaults_order_warn_duplicate_parts	\N	2019-10-15 11:37:11.23437
-defaults_show_longdescription_select_item	\N	2019-10-15 11:37:11.241555
-email_journal	\N	2019-10-15 11:37:11.253867
-periodic_invoices_direct_debit_flag	\N	2019-10-15 11:37:11.363816
-project_mtime_trigger	\N	2019-10-15 11:37:11.372084
-remove_index	\N	2019-10-15 11:37:11.384995
-sepa_contained_in_message_ids	\N	2019-10-15 11:37:11.680983
-defaults_enable_email_journal	\N	2019-10-15 11:37:11.743252
-release_3_4_0	\N	2019-10-15 11:37:11.75138
-add_parts_price_history	\N	2019-10-15 11:37:11.757375
-defaults_add_quick_search_modules	\N	2019-10-15 11:37:11.803614
-delete_from_generic_translations_on_language_deletion	\N	2019-10-15 11:37:11.811952
-letter_cleanup	\N	2019-10-15 11:37:11.823416
-payment_terms_for_invoices	\N	2019-10-15 11:37:11.844777
-periodic_invoices_send_email	\N	2019-10-15 11:37:11.853388
-transfer_type_assembled	\N	2019-10-15 11:37:11.887013
-add_parts_price_history2	\N	2019-10-15 11:37:11.89326
-inventory_fix_shippingdate_assemblies	\N	2019-10-15 11:37:11.901289
-inventory_shippingdate_not_null	\N	2019-10-15 11:37:11.913277
-release_3_4_1	\N	2019-10-15 11:37:11.919082
-add_test_mode_to_csv_import_report	\N	2019-10-15 11:37:11.925081
-add_warehouse_for_assembly	\N	2019-10-15 11:37:11.931066
-assembly_parts_foreign_key	\N	2019-10-15 11:37:11.937006
-assembly_position	\N	2019-10-15 11:37:11.952172
-create_record_template_tables	\N	2019-10-15 11:37:11.958344
-customer_klass_rename_to_pricegroup_id_and_foreign_key	\N	2019-10-15 11:37:12.073257
-defaults_add_feature_experimental	\N	2019-10-15 11:37:12.081101
-defaults_add_finanzamt_data	\N	2019-10-15 11:37:12.087083
-eur_bwa_category_views	\N	2019-10-15 11:37:12.097576
-filemanagement_feature	\N	2019-10-15 11:37:12.109227
-files	\N	2019-10-15 11:37:12.124278
-get_shipped_qty_config	\N	2019-10-15 11:37:12.183166
-letter_vendorletter	\N	2019-10-15 11:37:12.193062
-makemodel_add_vendor_foreign_key	\N	2019-10-15 11:37:12.201041
-part_classifications	\N	2019-10-15 11:37:12.207167
-part_type_enum	\N	2019-10-15 11:37:12.261053
-partsgroup_sortkey_obsolete	\N	2019-10-15 11:37:12.271035
-payment_terms_obsolete	\N	2019-10-15 11:37:12.279527
-periodic_invoices_order_value_periodicity2	\N	2019-10-15 11:37:12.284945
-pricegroup_sortkey_obsolete	\N	2019-10-15 11:37:12.290926
-prices_delete_cascade	\N	2019-10-15 11:37:12.302256
-prices_unique	\N	2019-10-15 11:37:12.321209
-remove_alternate_from_parts	\N	2019-10-15 11:37:12.348896
-sepa_export_items	\N	2019-10-15 11:37:12.356567
-sepa_reference_add_vc_vc_id	\N	2019-10-15 11:37:12.362529
-user_preferences	\N	2019-10-15 11:37:12.368823
-assembly_parts_foreign_key2	\N	2019-10-15 11:37:12.440365
-assortment_items	\N	2019-10-15 11:37:12.446577
-convert_drafts_to_record_templates	\N	2019-10-15 11:37:12.47915
-defaults_add_feature_experimental2	\N	2019-10-15 11:37:12.488266
-defaults_filemanagement_remove_doc_database	\N	2019-10-15 11:37:12.498014
-displayable_name_prefs_defaults	\N	2019-10-15 11:37:12.506228
-email_journal_attachments_add_fileid	\N	2019-10-15 11:37:12.515932
-part_classification_report_separate	\N	2019-10-15 11:37:12.523941
-part_remove_unneeded_fields	\N	2019-10-15 11:37:12.529863
-assortment_charge	\N	2019-10-15 11:37:12.535837
-release_3_5_0	\N	2019-10-15 11:37:12.541818
-alter_record_template_tables	\N	2019-10-15 11:37:12.547789
-custom_data_export	\N	2019-10-15 11:37:12.55378
-shops	\N	2019-10-15 11:37:12.668759
-trigram_extension	\N	2019-10-15 11:37:12.72781
-custom_data_export_default_values_for_parameters	\N	2019-10-15 11:37:12.863431
-customer_orderlock	\N	2019-10-15 11:37:12.871981
-shop_1	\N	2019-10-15 11:37:12.878045
-shop_2	\N	2019-10-15 11:37:12.886949
-shop_3	\N	2019-10-15 11:37:12.894729
-shop_orders	\N	2019-10-15 11:37:12.903368
-shop_parts	\N	2019-10-15 11:37:13.016536
-trigram_indices	\N	2019-10-15 11:37:13.098996
-trigram_indices_webshop	\N	2019-10-15 11:37:13.133059
-shop_orders_add_active_price_source	\N	2019-10-15 11:37:13.140856
-shopimages	\N	2019-10-15 11:37:13.148348
-shop_orders_update_1	\N	2019-10-15 11:37:13.208077
-shopimages_2	\N	2019-10-15 11:37:13.22023
-shopimages_3	\N	2019-10-15 11:37:13.22711
-shop_orders_update_2	\N	2019-10-15 11:37:13.23454
-shop_orders_update_3	\N	2019-10-15 11:37:13.24048
-release_3_5_1	\N	2019-10-15 11:37:13.248635
-create_part_customerprices	\N	2019-10-15 11:37:13.255909
-datev_export_format	\N	2019-10-15 11:37:13.366192
-stocktakings	\N	2019-10-15 11:37:13.374789
-release_3_5_2	\N	2019-10-15 11:37:13.452097
-accounts_tax_office_leonberg	\N	2019-10-15 11:37:13.460029
-defaults_order_warn_no_deliverydate	\N	2019-10-15 11:37:13.467689
-sepa_recommended_execution_date	\N	2019-10-15 11:37:13.475761
-release_3_5_3	\N	2019-10-15 11:37:13.48556
-add_emloyee_project_assignment_for_viewing_invoices	\N	2019-10-15 11:37:13.491801
-bank_transactions_check_constraint_invoice_amount	\N	2019-10-15 11:37:13.52634
-contacts_add_main_contact	\N	2019-10-15 11:37:13.532615
-customer_add_commercial_court	\N	2019-10-15 11:37:13.538242
-customer_add_fields	\N	2019-10-15 11:37:13.544106
-customer_add_generic_mail_delivery	\N	2019-10-15 11:37:13.550111
-defaults_delivery_date_interval	\N	2019-10-15 11:37:13.556234
-defaults_doc_email_attachment	\N	2019-10-15 11:37:13.562273
-defaults_invoice_mail_priority	\N	2019-10-15 11:37:13.572107
-defaults_set_dunning_creator	\N	2019-10-15 11:37:13.580018
-drop_payment_terms_ranking	\N	2019-10-15 11:37:13.586122
-dunning_foreign_key_for_trans_id	\N	2019-10-15 11:37:13.591969
-record_links_bt_acc_trans	\N	2019-10-15 11:37:13.602553
-record_links_post_delete_triggers_gl2	\N	2019-10-15 11:37:13.644408
-release_3_5_4	\N	2019-10-15 11:37:13.655663
+SKR04-3804-addition	\N	2020-11-05 15:49:17.070218
+acc_trans_constraints	\N	2020-11-05 15:49:17.074398
+chart_category_to_sgn	\N	2020-11-05 15:49:17.077912
+chart_names	\N	2020-11-05 15:49:17.081033
+chart_names2	\N	2020-11-05 15:49:17.083789
+customer_vendor_ustid_length	\N	2020-11-05 15:49:17.085797
+language_output_formatting	\N	2020-11-05 15:49:17.090122
+remove_obsolete_trigger	\N	2020-11-05 15:49:17.092426
+rename_buchungsgruppen_accounts_16_19_percent	\N	2020-11-05 15:49:17.094416
+sales_quotation_order_probability_expected_billing_date	\N	2020-11-05 15:49:17.096952
+tax_id_if_taxkey_is_0	\N	2020-11-05 15:49:17.099713
+units_translations_and_singular_plural_distinction	\N	2020-11-05 15:49:17.1038
+tax_primary_key_taxkeys_foreign_keys	\N	2020-11-05 15:49:17.114027
+invalid_taxkesy	\N	2020-11-05 15:49:17.120514
+release_2_4_1	\N	2020-11-05 15:49:17.123883
+PgCommaAggregateFunction	\N	2020-11-05 15:49:17.125768
+ap_ar_orddate_quodate	\N	2020-11-05 15:49:17.128731
+buchungsgruppen_sortkey	\N	2020-11-05 15:49:17.132085
+customer_vendor_taxzone_id	\N	2020-11-05 15:49:17.136126
+drafts	\N	2020-11-05 15:49:17.139625
+employee_no_limits	\N	2020-11-05 15:49:17.146602
+globalprojectnumber_ap_ar_oe	\N	2020-11-05 15:49:17.158427
+oe_delivered	\N	2020-11-05 15:49:17.16354
+oe_is_salesman	\N	2020-11-05 15:49:17.166068
+parts_ean	\N	2020-11-05 15:49:17.17018
+payment_terms_sortkey	\N	2020-11-05 15:49:17.1719
+payment_terms_translation	\N	2020-11-05 15:49:17.175223
+project	\N	2020-11-05 15:49:17.180428
+status_history	\N	2020-11-05 15:49:17.183714
+units_sortkey	\N	2020-11-05 15:49:17.190421
+history_erp	\N	2020-11-05 15:49:17.195377
+marge_initial	\N	2020-11-05 15:49:17.207353
+ustva_setup_2007	\N	2020-11-05 15:49:17.212446
+history_erp_snumbers	\N	2020-11-05 15:49:17.216407
+tax_description_without_percentage_skr04	\N	2020-11-05 15:49:17.218128
+ustva_setup_2007_update_chart_taxkeys_tax	\N	2020-11-05 15:49:17.223891
+fix_taxdescription	\N	2020-11-05 15:49:17.24211
+ustva_setup_2007_update_chart_taxkeys_tax_add_missing_tax_accounts	\N	2020-11-05 15:49:17.249731
+tax_description_without_percentage	\N	2020-11-05 15:49:17.251845
+release_2_4_2	\N	2020-11-05 15:49:17.258685
+COA_Account_Settings001	\N	2020-11-05 15:49:17.260961
+COA_Account_Settings002	\N	2020-11-05 15:49:17.263403
+USTVA_abstraction	\N	2020-11-05 15:49:17.267154
+ap_storno	\N	2020-11-05 15:49:17.298413
+ar_storno	\N	2020-11-05 15:49:17.300787
+cb_ob_transaction	\N	2020-11-05 15:49:17.303033
+dunning_config_interest_rate	\N	2020-11-05 15:49:17.305453
+dunning_dunning_id	\N	2020-11-05 15:49:17.307517
+dunning_invoices_for_fees	\N	2020-11-05 15:49:17.316135
+gl_storno	\N	2020-11-05 15:49:17.320992
+invalid_taxkeys_2	\N	2020-11-05 15:49:17.329544
+transaction_description	\N	2020-11-05 15:49:17.332571
+USTVA_at	\N	2020-11-05 15:49:17.339289
+ar_ap_storno_id	\N	2020-11-05 15:49:17.342031
+dunning_invoices_per_dunning_level	\N	2020-11-05 15:49:17.345949
+tax_report_table_name	\N	2020-11-05 15:49:17.348716
+release_2_4_3	\N	2020-11-05 15:49:17.350671
+acc_trans_without_oid	\N	2020-11-05 15:49:17.352072
+bank_accounts	\N	2020-11-05 15:49:17.372588
+change_makemodel_vendor_id	\N	2020-11-05 15:49:17.385314
+custom_variables	\N	2020-11-05 15:49:17.387622
+direct_debit	\N	2020-11-05 15:49:17.408721
+follow_ups	\N	2020-11-05 15:49:17.411249
+oe_employee_id_foreignkey	\N	2020-11-05 15:49:17.432721
+price_factors	\N	2020-11-05 15:49:17.435778
+sic_code	\N	2020-11-05 15:49:17.453041
+todo_config	\N	2020-11-05 15:49:17.457919
+trigger_assembly_update_lastcost	\N	2020-11-05 15:49:17.462156
+units_no_type_distinction	\N	2020-11-05 15:49:17.468756
+warehouse	\N	2020-11-05 15:49:17.471805
+add_stocktaking_preselects_client_config_default	\N	2020-11-05 15:49:17.509803
+delivery_orders	\N	2020-11-05 15:49:17.516336
+transfer_type_shipped	\N	2020-11-05 15:49:17.557954
+transfer_type_stocktaking	\N	2020-11-05 15:49:17.56057
+warehouse2	\N	2020-11-05 15:49:17.562865
+add_stocktaking_qty_threshold_client_config_default	\N	2020-11-05 15:49:17.565603
+ar_add_donumber	\N	2020-11-05 15:49:17.567675
+ar_add_invnumber_for_credit_note	\N	2020-11-05 15:49:17.569477
+check_bin_belongs_to_wh_trigger	\N	2020-11-05 15:49:17.571548
+record_links	\N	2020-11-05 15:49:17.575378
+transaction_description_not_null	\N	2020-11-05 15:49:17.589281
+release_2_6_0	\N	2020-11-05 15:49:17.595409
+auth_enable_sales_all_edit	\N	2020-11-05 15:49:17.599447
+custom_variables_parts_services_assemblies	\N	2020-11-05 15:49:17.600854
+custom_variables_valid	\N	2020-11-05 15:49:17.603586
+delivery_orders_fields_for_invoices	\N	2020-11-05 15:49:17.6124
+fix_acc_trans_ap_taxkey_bug	\N	2020-11-05 15:49:17.614714
+fix_datepaid	\N	2020-11-05 15:49:17.617897
+generic_translations	\N	2020-11-05 15:49:17.620308
+has_sernumber	\N	2020-11-05 15:49:17.62962
+rundungsfehler_korrigieren_BUG1328-2	\N	2020-11-05 15:49:17.631564
+sepa	\N	2020-11-05 15:49:17.634051
+update_date_paid	\N	2020-11-05 15:49:17.64314
+warehouse3	\N	2020-11-05 15:49:17.645313
+warehouse_add_bestbefore	\N	2020-11-05 15:49:17.646874
+add_depositor_for_customer_vendor	\N	2020-11-05 15:49:17.648336
+add_more_constraints_fibu_projekt_xplace3	\N	2020-11-05 15:49:17.65418
+cp_greeting_migration	\N	2020-11-05 15:49:17.658871
+release_2_6_1	\N	2020-11-05 15:49:17.660943
+acc_trans_id_uniqueness	\N	2020-11-05 15:49:17.662942
+add_ar_paid_defaults	\N	2020-11-05 15:49:17.665115
+add_makemodel_prices	\N	2020-11-05 15:49:17.666761
+csv_import_profiles	\N	2020-11-05 15:49:17.669473
+customer_long_entries	\N	2020-11-05 15:49:17.689054
+drop_yearend	\N	2020-11-05 15:49:17.698024
+emmvee_background_jobs	\N	2020-11-05 15:49:17.70069
+invalid_entries_in_custom_variables_validity	\N	2020-11-05 15:49:17.718004
+payment_terms_translation2	\N	2020-11-05 15:49:17.720129
+periodic_invoices	\N	2020-11-05 15:49:17.724602
+schema_normalization_1	\N	2020-11-05 15:49:17.739091
+sepa_in	\N	2020-11-05 15:49:17.760666
+shipto_add_cp_gender	\N	2020-11-05 15:49:17.767059
+skr03_04_bwa_zuordnung_konten_4250_4610	\N	2020-11-05 15:49:17.769074
+skr04_fix_category_3151_3160_3170	\N	2020-11-05 15:49:17.773644
+ustva_2010	\N	2020-11-05 15:49:17.775972
+auto_delete_sepa_export_items_on_ap_ar_deletion	\N	2020-11-05 15:49:17.780861
+csv_import_profiles_2	\N	2020-11-05 15:49:17.794886
+delete_translations_on_payment_term_delete	\N	2020-11-05 15:49:17.797374
+emmvee_background_jobs_2	\N	2020-11-05 15:49:17.801329
+periodic_invoices_background_job	\N	2020-11-05 15:49:17.803488
+periodic_invoices_first_billing_date	\N	2020-11-05 15:49:17.805451
+schema_normalization_2	\N	2020-11-05 15:49:17.807671
+background_jobs_3	\N	2020-11-05 15:49:18.013886
+csv_import_report_cache	\N	2020-11-05 15:49:18.016588
+csv_mt940_add_profile	\N	2020-11-05 15:49:18.051649
+re_add_sepa_export_items_foreign_keys	\N	2020-11-05 15:49:18.06216
+schema_normalization_3	\N	2020-11-05 15:49:18.067857
+csv_import_reports_add_numheaders	\N	2020-11-05 15:49:18.074379
+release_2_6_2	\N	2020-11-05 15:49:18.077427
+chart_taxkey_id_from_taxkeys	\N	2020-11-05 15:49:18.079103
+custom_variables_indices	\N	2020-11-05 15:49:18.098655
+custom_variables_indices_2	\N	2020-11-05 15:49:18.109191
+units_id	\N	2020-11-05 15:49:18.114107
+release_2_6_3	\N	2020-11-05 15:49:18.127658
+auth_enable_ct_all_edit	\N	2020-11-05 15:49:18.131429
+auth_enable_edit_prices	\N	2020-11-05 15:49:18.136716
+customer_add_constraints	\N	2020-11-05 15:49:18.138497
+customer_vendor_add_currency	\N	2020-11-05 15:49:18.148083
+defaults_add_language_id	\N	2020-11-05 15:49:18.150632
+delivery_order_items_add_pricegroup_id	\N	2020-11-05 15:49:18.152356
+department_drop_role	\N	2020-11-05 15:49:18.154208
+drop_datevexport	\N	2020-11-05 15:49:18.156263
+employee_deleted	\N	2020-11-05 15:49:18.159419
+license_invoice_drop	\N	2020-11-05 15:49:18.161766
+oe_customer_vendor_fkeys	\N	2020-11-05 15:49:18.167217
+parts_add_unit_foreign_key	\N	2020-11-05 15:49:18.173635
+umstellung_eur	\N	2020-11-05 15:49:18.180373
+ustva_2010_fixes	\N	2020-11-05 15:49:18.183236
+vendor_add_constraints	\N	2020-11-05 15:49:18.185276
+warehouse_alter_chargenumber	\N	2020-11-05 15:49:18.193934
+release_2_7_0	\N	2020-11-05 15:49:18.200599
+chart_type_skonto	\N	2020-11-05 15:49:18.202528
+contacts_add_street_and_zipcode_and_city	\N	2020-11-05 15:49:18.210945
+contacts_convert_cp_birthday_to_date	\N	2020-11-05 15:49:18.215088
+convert_curr_to_text	\N	2020-11-05 15:49:18.218094
+custom_variables_sub_module_not_null	\N	2020-11-05 15:49:18.346548
+customer_add_taxincluded_checked	\N	2020-11-05 15:49:18.350064
+customer_vendor_phone_no_limits	\N	2020-11-05 15:49:18.352558
+defaults_datev_check	\N	2020-11-05 15:49:18.35566
+defaults_posting_config	\N	2020-11-05 15:49:18.362104
+defaults_posting_records_config	\N	2020-11-05 15:49:18.364873
+defaults_show_bestbefore	\N	2020-11-05 15:49:18.370535
+defaults_show_delete_on_orders	\N	2020-11-05 15:49:18.375688
+defaults_show_mark_as_paid_config	\N	2020-11-05 15:49:18.379086
+finanzamt_update_fa_bufa_nr_hamburg	\N	2020-11-05 15:49:18.382396
+record_links_post_delete_triggers	\N	2020-11-05 15:49:18.388131
+rename_buchungsgruppe_16_19_to_19	\N	2020-11-05 15:49:18.401115
+self_test_background_job	\N	2020-11-05 15:49:18.403237
+ustva_setup_2007_update_chart_taxkeys_tax_skr04	\N	2020-11-05 15:49:18.406509
+customer_add_taxincluded_checked_2	\N	2020-11-05 15:49:18.414273
+record_links_post_delete_triggers2	\N	2020-11-05 15:49:18.416881
+release_3_0_0	\N	2020-11-05 15:49:18.420695
+acc_trans_booleans_not_null	\N	2020-11-05 15:49:18.422023
+accounts_tax_office_bad_homburg	\N	2020-11-05 15:49:18.426225
+add_chart_link_to_acc_trans	\N	2020-11-05 15:49:18.428087
+add_customer_mandator_id	\N	2020-11-05 15:49:18.431217
+add_fk_to_gl	\N	2020-11-05 15:49:18.43535
+add_warehouse_defaults	\N	2020-11-05 15:49:18.438784
+ap_add_direct_debit	\N	2020-11-05 15:49:18.444015
+ap_deliverydate	\N	2020-11-05 15:49:18.446455
+ar_add_direct_debit	\N	2020-11-05 15:49:18.448121
+ar_ap_foreign_keys	\N	2020-11-05 15:49:18.450551
+ar_ap_gl_delete_triggers_deletion_from_acc_trans	\N	2020-11-05 15:49:18.472082
+background_job_change_create_periodic_invoices_to_daily	\N	2020-11-05 15:49:18.475709
+charts_without_taxkey	\N	2020-11-05 15:49:18.478356
+cleanup_after_customer_vendor_deletion	\N	2020-11-05 15:49:18.481987
+clients	\N	2020-11-05 15:49:18.4856
+contacts_add_cp_position	\N	2020-11-05 15:49:18.490239
+custom_variable_configs_column_type_text	\N	2020-11-05 15:49:18.492503
+custom_variables_validity_index	\N	2020-11-05 15:49:18.499544
+defaults_add_max_future_booking_intervall	\N	2020-11-05 15:49:18.507527
+defaults_add_precision	\N	2020-11-05 15:49:18.510031
+defaults_feature	\N	2020-11-05 15:49:18.512604
+defaults_feature2	\N	2020-11-05 15:49:18.520228
+del_exchangerate	\N	2020-11-05 15:49:18.523089
+delete_close_follow_ups_when_order_is_deleted_closed_fkey_deletion	\N	2020-11-05 15:49:18.526433
+delete_customertax_vendortax_partstax	\N	2020-11-05 15:49:18.531977
+delete_translations_on_tax_delete	\N	2020-11-05 15:49:18.538354
+delivery_terms	\N	2020-11-05 15:49:18.541811
+drop_audittrail	\N	2020-11-05 15:49:18.564551
+drop_dpt_trans	\N	2020-11-05 15:49:18.568844
+drop_gifi	\N	2020-11-05 15:49:18.574817
+drop_rma	\N	2020-11-05 15:49:18.579863
+employee_drop_columns	\N	2020-11-05 15:49:18.585935
+erzeugnisnummern	\N	2020-11-05 15:49:18.59412
+first_aggregator	\N	2020-11-05 15:49:18.60139
+fix_datepaid_for_sepa_transfers	\N	2020-11-05 15:49:18.604268
+gewichte	\N	2020-11-05 15:49:18.606991
+gl_add_employee_foreign_key	\N	2020-11-05 15:49:18.609021
+invoice_add_donumber	\N	2020-11-05 15:49:18.612052
+oe_delivery_orders_foreign_keys	\N	2020-11-05 15:49:18.613691
+orderitems_delivery_order_items_invoice_foreign_keys	\N	2020-11-05 15:49:18.637861
+parts_translation_foreign_keys	\N	2020-11-05 15:49:18.657001
+project_customer_type_valid	\N	2020-11-05 15:49:18.668218
+project_types	\N	2020-11-05 15:49:18.673876
+requirement_specs	\N	2020-11-05 15:49:18.690093
+rm_whitespaces	\N	2020-11-05 15:49:18.850979
+add_tax_id_to_acc_trans	\N	2020-11-05 15:49:18.856253
+add_warehouse_client_config_default	\N	2020-11-05 15:49:18.860245
+balance_startdate_method	\N	2020-11-05 15:49:18.864676
+currencies	\N	2020-11-05 15:49:18.86905
+custom_variables_delete_via_trigger	\N	2020-11-05 15:49:18.891743
+default_bin_parts	\N	2020-11-05 15:49:18.90318
+defaults_customer_hourly_rate	\N	2020-11-05 15:49:18.906133
+defaults_signature	\N	2020-11-05 15:49:18.909364
+delete_close_follow_ups_when_order_is_deleted_closed	\N	2020-11-05 15:49:18.911801
+delete_cust_vend_tax	\N	2020-11-05 15:49:18.924821
+delete_translations_on_delivery_term_delete	\N	2020-11-05 15:49:18.927734
+drop_gifi_2	\N	2020-11-05 15:49:18.931618
+oe_do_delete_via_trigger	\N	2020-11-05 15:49:18.934237
+project_bob_attributes	\N	2020-11-05 15:49:18.984946
+remove_role_from_employee	\N	2020-11-05 15:49:19.026598
+requirement_spec_items_item_type_index	\N	2020-11-05 15:49:19.028565
+requirement_spec_items_price_factor	\N	2020-11-05 15:49:19.032985
+requirement_spec_items_update_trigger_fix	\N	2020-11-05 15:49:19.035241
+requirement_spec_pictures	\N	2020-11-05 15:49:19.043043
+requirement_spec_predefined_texts_for_sections	\N	2020-11-05 15:49:19.056003
+requirement_spec_types_number_formats	\N	2020-11-05 15:49:19.059985
+requirement_spec_types_template_file_name	\N	2020-11-05 15:49:19.065717
+requirement_specs_print_templates	\N	2020-11-05 15:49:19.071021
+requirement_specs_section_templates	\N	2020-11-05 15:49:19.072598
+tax_constraints	\N	2020-11-05 15:49:19.077289
+add_fkey_tax_id_to_acc_trans	\N	2020-11-05 15:49:19.089896
+custom_variables_delete_via_trigger_2	\N	2020-11-05 15:49:19.092599
+custom_variables_delete_via_trigger_requirement_specs	\N	2020-11-05 15:49:19.094661
+project_bob_attributes_itime_default_fix	\N	2020-11-05 15:49:19.09737
+requirement_spec_delete_trigger_fix	\N	2020-11-05 15:49:19.10255
+requirement_spec_type_for_template_fix	\N	2020-11-05 15:49:19.112293
+requirement_specs_orders	\N	2020-11-05 15:49:19.114868
+steuerfilterung	\N	2020-11-05 15:49:19.140887
+unit_foreign_key_for_line_items	\N	2020-11-05 15:49:19.146551
+project_bob_attributes_fix_project_status_table_name	\N	2020-11-05 15:49:19.152991
+release_3_1_0	\N	2020-11-05 15:49:19.15482
+requirement_spec_delete_trigger_fix2	\N	2020-11-05 15:49:19.156276
+requirement_spec_items_update_trigger_fix2	\N	2020-11-05 15:49:19.169179
+add_warehouse_client_config_default2	\N	2020-11-05 15:49:19.175736
+background_jobs_clean_auth_sessions	\N	2020-11-05 15:49:19.178365
+bank_accounts_add_name	\N	2020-11-05 15:49:19.180362
+column_type_text_instead_of_varchar	\N	2020-11-05 15:49:19.182476
+custom_variable_partsgroups	\N	2020-11-05 15:49:19.187127
+defaults_add_delivery_plan_config	\N	2020-11-05 15:49:19.192529
+defaults_add_rnd_accno_ids	\N	2020-11-05 15:49:19.194413
+defaults_global_bcc	\N	2020-11-05 15:49:19.196895
+defaults_only_customer_projects_in_sales	\N	2020-11-05 15:49:19.198546
+defaults_reqdate_interval	\N	2020-11-05 15:49:19.202415
+defaults_require_transaction_description	\N	2020-11-05 15:49:19.204112
+defaults_sales_purchase_order_show_ship_missing_column	\N	2020-11-05 15:49:19.20631
+defaults_sales_purchase_process_limitations	\N	2020-11-05 15:49:19.208492
+defaults_transport_cost_reminder	\N	2020-11-05 15:49:19.212041
+delete_cvars_on_trans_deletion	\N	2020-11-05 15:49:19.21476
+invoice_positions	\N	2020-11-05 15:49:19.23238
+orderitems_delivery_order_items_positions	\N	2020-11-05 15:49:19.235863
+periodic_invoices_order_value_periodicity	\N	2020-11-05 15:49:19.240041
+price_rules	\N	2020-11-05 15:49:19.250895
+price_source_client_config	\N	2020-11-05 15:49:19.271522
+project_status_default_entries	\N	2020-11-05 15:49:19.273965
+record_links_orderitems_delete_triggers	\N	2020-11-05 15:49:19.27891
+recorditem_active_price_source	\N	2020-11-05 15:49:19.284387
+remove_redundant_customer_vendor_delete_triggers	\N	2020-11-05 15:49:19.290036
+requirement_spec_edit_html	\N	2020-11-05 15:49:19.292964
+requirement_spec_parts	\N	2020-11-05 15:49:19.298034
+taxzone_charts	\N	2020-11-05 15:49:19.309598
+vendor_long_entries	\N	2020-11-05 15:49:19.318777
+warehouse_add_delivery_order_items_stock_id	\N	2020-11-05 15:49:19.32366
+column_type_text_instead_of_varchar2	\N	2020-11-05 15:49:19.328807
+convert_taxzone	\N	2020-11-05 15:49:19.33191
+defaults_bcc_to_login	\N	2020-11-05 15:49:19.33871
+defaults_drop_delivery_plan_calculate_transferred_do	\N	2020-11-05 15:49:19.341032
+defaults_transport_cost_reminder_id	\N	2020-11-05 15:49:19.343164
+delete_cvars_on_trans_deletion_fix1	\N	2020-11-05 15:49:19.346119
+oe_ar_ap_delivery_orders_edit_notes_as_html	\N	2020-11-05 15:49:19.34839
+price_rules_cascade_delete	\N	2020-11-05 15:49:19.351537
+recorditem_active_record_source	\N	2020-11-05 15:49:19.355261
+remove_redundant_cvar_delete_triggers	\N	2020-11-05 15:49:19.357433
+requirement_spec_parts_foreign_key_cascade	\N	2020-11-05 15:49:19.360998
+taxzone_sortkey	\N	2020-11-05 15:49:19.36525
+transfer_out_sales_invoice	\N	2020-11-05 15:49:19.368452
+ar_ap_fix_notes_as_html_for_non_invoices	\N	2020-11-05 15:49:19.373201
+column_type_text_instead_of_varchar3	\N	2020-11-05 15:49:19.375831
+delete_cvars_on_trans_deletion_add_shipto	\N	2020-11-05 15:49:19.378079
+delete_cvars_on_trans_deletion_fix2	\N	2020-11-05 15:49:19.38416
+price_rules_discount	\N	2020-11-05 15:49:19.386373
+taxzone_default_id	\N	2020-11-05 15:49:19.38878
+change_taxzone_id_0	\N	2020-11-05 15:49:19.391531
+tax_zones_obsolete	\N	2020-11-05 15:49:19.404193
+taxzone_id_in_oe_delivery_orders	\N	2020-11-05 15:49:19.406289
+release_3_2_0	\N	2020-11-05 15:49:19.415166
+ar_ap_default	\N	2020-11-05 15:49:19.416615
+bank_accounts_unique_chart_constraint	\N	2020-11-05 15:49:19.423159
+bank_transactions	\N	2020-11-05 15:49:19.427898
+bankaccounts_reconciliation	\N	2020-11-05 15:49:19.438786
+bankaccounts_sortkey_and_obsolete	\N	2020-11-05 15:49:19.440708
+create_part_if_not_found	\N	2020-11-05 15:49:19.447459
+defaults_drop_delivery_plan_config	\N	2020-11-05 15:49:19.450182
+delete_invalidated_custom_variables_for_parts	\N	2020-11-05 15:49:19.452338
+invoices_amount_paid_not_null	\N	2020-11-05 15:49:19.45435
+letter	\N	2020-11-05 15:49:19.464521
+payment_terms_automatic_calculation	\N	2020-11-05 15:49:19.47786
+remove_terms_add_payment_id	\N	2020-11-05 15:49:19.480763
+sepa_items_payment_type	\N	2020-11-05 15:49:19.488092
+tax_skonto_automatic	\N	2020-11-05 15:49:19.490957
+automatic_reconciliation	\N	2020-11-05 15:49:19.500402
+bank_transactions_type	\N	2020-11-05 15:49:19.507477
+letter_country_page	\N	2020-11-05 15:49:19.509533
+letter_date_type	\N	2020-11-05 15:49:19.511424
+letter_draft	\N	2020-11-05 15:49:19.514581
+letter_reference	\N	2020-11-05 15:49:19.52606
+auto_delete_reconciliation_links_on_acc_trans_deletion	\N	2020-11-05 15:49:19.5285
+bank_transactions_type2	\N	2020-11-05 15:49:19.537602
+letter_emplyee_salesman	\N	2020-11-05 15:49:19.539699
+use_html_in_letter	\N	2020-11-05 15:49:19.542231
+letter_notes_internal	\N	2020-11-05 15:49:19.544323
+letter_cp_id	\N	2020-11-05 15:49:19.546127
+release_3_3_0	\N	2020-11-05 15:49:19.549832
+add_project_defaults	\N	2020-11-05 15:49:19.551396
+buchungsgruppen_forein_keys	\N	2020-11-05 15:49:19.560292
+chart_pos_er	\N	2020-11-05 15:49:19.564047
+customer_vendor_shipto_add_gln	\N	2020-11-05 15:49:19.577573
+defaults_add_features	\N	2020-11-05 15:49:19.580681
+defaults_order_warn_duplicate_parts	\N	2020-11-05 15:49:19.588441
+defaults_show_longdescription_select_item	\N	2020-11-05 15:49:19.591213
+email_journal	\N	2020-11-05 15:49:19.594328
+periodic_invoices_direct_debit_flag	\N	2020-11-05 15:49:19.610342
+project_mtime_trigger	\N	2020-11-05 15:49:19.612457
+remove_index	\N	2020-11-05 15:49:19.613657
+sepa_contained_in_message_ids	\N	2020-11-05 15:49:19.650183
+defaults_enable_email_journal	\N	2020-11-05 15:49:19.657532
+release_3_4_0	\N	2020-11-05 15:49:19.659632
+add_parts_price_history	\N	2020-11-05 15:49:19.66077
+defaults_add_quick_search_modules	\N	2020-11-05 15:49:19.667475
+delete_from_generic_translations_on_language_deletion	\N	2020-11-05 15:49:19.669436
+letter_cleanup	\N	2020-11-05 15:49:19.673345
+payment_terms_for_invoices	\N	2020-11-05 15:49:19.678777
+periodic_invoices_send_email	\N	2020-11-05 15:49:19.681191
+transfer_type_assembled	\N	2020-11-05 15:49:19.690901
+add_parts_price_history2	\N	2020-11-05 15:49:19.692903
+inventory_fix_shippingdate_assemblies	\N	2020-11-05 15:49:19.694336
+inventory_shippingdate_not_null	\N	2020-11-05 15:49:19.696294
+release_3_4_1	\N	2020-11-05 15:49:19.697709
+add_test_mode_to_csv_import_report	\N	2020-11-05 15:49:19.69892
+add_warehouse_for_assembly	\N	2020-11-05 15:49:19.70056
+assembly_parts_foreign_key	\N	2020-11-05 15:49:19.702171
+assembly_position	\N	2020-11-05 15:49:19.704217
+create_record_template_tables	\N	2020-11-05 15:49:19.705581
+customer_klass_rename_to_pricegroup_id_and_foreign_key	\N	2020-11-05 15:49:19.729131
+defaults_add_feature_experimental	\N	2020-11-05 15:49:19.731648
+defaults_add_finanzamt_data	\N	2020-11-05 15:49:19.733247
+eur_bwa_category_views	\N	2020-11-05 15:49:19.736693
+filemanagement_feature	\N	2020-11-05 15:49:19.740269
+files	\N	2020-11-05 15:49:19.747094
+get_shipped_qty_config	\N	2020-11-05 15:49:19.757766
+letter_vendorletter	\N	2020-11-05 15:49:19.766564
+makemodel_add_vendor_foreign_key	\N	2020-11-05 15:49:19.770632
+part_classifications	\N	2020-11-05 15:49:19.784403
+part_type_enum	\N	2020-11-05 15:49:19.796429
+partsgroup_sortkey_obsolete	\N	2020-11-05 15:49:19.803406
+payment_terms_obsolete	\N	2020-11-05 15:49:19.808895
+periodic_invoices_order_value_periodicity2	\N	2020-11-05 15:49:19.81133
+pricegroup_sortkey_obsolete	\N	2020-11-05 15:49:19.814449
+prices_delete_cascade	\N	2020-11-05 15:49:19.820351
+prices_unique	\N	2020-11-05 15:49:19.830332
+remove_alternate_from_parts	\N	2020-11-05 15:49:19.836054
+sepa_export_items	\N	2020-11-05 15:49:19.83849
+sepa_reference_add_vc_vc_id	\N	2020-11-05 15:49:19.840698
+user_preferences	\N	2020-11-05 15:49:19.843887
+assembly_parts_foreign_key2	\N	2020-11-05 15:49:19.855908
+assortment_items	\N	2020-11-05 15:49:19.859863
+convert_drafts_to_record_templates	\N	2020-11-05 15:49:19.870091
+defaults_add_feature_experimental2	\N	2020-11-05 15:49:19.875266
+defaults_filemanagement_remove_doc_database	\N	2020-11-05 15:49:19.878958
+displayable_name_prefs_defaults	\N	2020-11-05 15:49:19.881505
+email_journal_attachments_add_fileid	\N	2020-11-05 15:49:19.885225
+part_classification_report_separate	\N	2020-11-05 15:49:19.887411
+part_remove_unneeded_fields	\N	2020-11-05 15:49:19.889142
+assortment_charge	\N	2020-11-05 15:49:19.891942
+release_3_5_0	\N	2020-11-05 15:49:19.893421
+alter_record_template_tables	\N	2020-11-05 15:49:19.894556
+custom_data_export	\N	2020-11-05 15:49:19.896033
+shops	\N	2020-11-05 15:49:19.912183
+trigram_extension	\N	2020-11-05 15:49:19.919049
+custom_data_export_default_values_for_parameters	\N	2020-11-05 15:49:19.928353
+customer_orderlock	\N	2020-11-05 15:49:19.930629
+shop_1	\N	2020-11-05 15:49:19.932229
+shop_2	\N	2020-11-05 15:49:19.933922
+shop_3	\N	2020-11-05 15:49:19.935243
+shop_orders	\N	2020-11-05 15:49:19.93837
+shop_parts	\N	2020-11-05 15:49:19.955826
+trigram_indices	\N	2020-11-05 15:49:19.968733
+trigram_indices_webshop	\N	2020-11-05 15:49:19.982527
+shop_orders_add_active_price_source	\N	2020-11-05 15:49:19.9841
+shopimages	\N	2020-11-05 15:49:19.985795
+shop_orders_update_1	\N	2020-11-05 15:49:19.995054
+shopimages_2	\N	2020-11-05 15:49:19.999868
+shopimages_3	\N	2020-11-05 15:49:20.001624
+shop_orders_update_2	\N	2020-11-05 15:49:20.003209
+shop_orders_update_3	\N	2020-11-05 15:49:20.007719
+release_3_5_1	\N	2020-11-05 15:49:20.010606
+create_part_customerprices	\N	2020-11-05 15:49:20.012409
+datev_export_format	\N	2020-11-05 15:49:20.025823
+stocktakings	\N	2020-11-05 15:49:20.029367
+release_3_5_2	\N	2020-11-05 15:49:20.039206
+accounts_tax_office_leonberg	\N	2020-11-05 15:49:20.041133
+defaults_order_warn_no_deliverydate	\N	2020-11-05 15:49:20.043003
+sepa_recommended_execution_date	\N	2020-11-05 15:49:20.044949
+release_3_5_3	\N	2020-11-05 15:49:20.047998
+add_emloyee_project_assignment_for_viewing_invoices	\N	2020-11-05 15:49:20.049883
+bank_transactions_check_constraint_invoice_amount	\N	2020-11-05 15:49:20.055317
+contacts_add_main_contact	\N	2020-11-05 15:49:20.057478
+customer_add_commercial_court	\N	2020-11-05 15:49:20.059579
+customer_add_fields	\N	2020-11-05 15:49:20.061113
+customer_add_generic_mail_delivery	\N	2020-11-05 15:49:20.062552
+defaults_delivery_date_interval	\N	2020-11-05 15:49:20.064035
+defaults_doc_email_attachment	\N	2020-11-05 15:49:20.066457
+defaults_invoice_mail_priority	\N	2020-11-05 15:49:20.069552
+defaults_set_dunning_creator	\N	2020-11-05 15:49:20.072662
+drop_payment_terms_ranking	\N	2020-11-05 15:49:20.075226
+dunning_foreign_key_for_trans_id	\N	2020-11-05 15:49:20.077042
+record_links_bt_acc_trans	\N	2020-11-05 15:49:20.08081
+record_links_post_delete_triggers_gl2	\N	2020-11-05 15:49:20.09085
+remove_comma_aggregate_functions	\N	2020-11-05 15:49:20.09587
+release_3_5_4	\N	2020-11-05 15:49:20.097509
+add_node_id_to_background_jobs	\N	2020-11-05 15:49:20.098872
+bank_transaction_acc_trans_remove_wrong_primary_key	\N	2020-11-05 15:49:20.100566
+bank_transactions_nuke_trailing_spaces_in_purpose	\N	2020-11-05 15:49:20.102325
+defaults_split_address	\N	2020-11-05 15:49:20.104631
+defaults_workflow_po_ap_chart_id	\N	2020-11-05 15:49:20.10782
+defaults_year_end_charts	\N	2020-11-05 15:49:20.109687
+inventory_itime_parts_id_index	\N	2020-11-05 15:49:20.114517
+inventory_parts_id_index	\N	2020-11-05 15:49:20.118908
+tax_removed_taxnumber	\N	2020-11-05 15:49:20.122756
+release_3_5_5	\N	2020-11-05 15:49:20.124252
+bank_account_flag_for_zugferd_usage	\N	2020-11-05 15:49:20.125631
+contact_departments_own_table	\N	2020-11-05 15:49:20.12813
+contact_titles_own_table	\N	2020-11-05 15:49:20.138803
+customer_create_zugferd_invoices	\N	2020-11-05 15:49:20.149179
+customer_vendor_add_natural_person	\N	2020-11-05 15:49:20.151114
+defaults_contact_departments_use_textfield	\N	2020-11-05 15:49:20.153336
+defaults_contact_titles_use_textfield	\N	2020-11-05 15:49:20.155708
+defaults_create_zugferd_data	\N	2020-11-05 15:49:20.157789
+defaults_vc_greetings_use_textfield	\N	2020-11-05 15:49:20.160128
+dunning_config_print_original_invoice	\N	2020-11-05 15:49:20.162343
+exchangerate_in_oe	\N	2020-11-05 15:49:20.164097
+gl_add_deliverydate	\N	2020-11-05 15:49:20.16762
+greetings_own_table	\N	2020-11-05 15:49:20.169359
+konjunkturpaket_2020_SKR03	\N	2020-11-05 15:49:20.19007
+remove_double_tax_entries_skr04	\N	2020-11-05 15:49:20.196082
+remove_taxkey_15_17_skr04	\N	2020-11-05 15:49:20.198347
+defaults_zugferd_test_mode	\N	2020-11-05 15:49:20.201519
+konjunkturpaket_2020_SKR04	\N	2020-11-05 15:49:20.221058
+konjunkturpaket_2020	\N	2020-11-05 15:49:20.23612
+konjunkturpaket_2020_SKR04-korrekturen	\N	2020-11-05 15:49:20.239926
+konjunkturpaket_2020_SKR03-korrekturen	\N	2020-11-05 15:49:20.244553
+release_3_5_6	\N	2020-11-05 15:49:20.246508
+alter_default_shipped_qty_config	\N	2020-11-05 15:49:20.248102
+ap_set_payment_term_from_vendor	\N	2020-11-05 15:49:20.250243
+transfer_out_serial_charge_number	\N	2020-11-05 15:49:20.252429
+release_3_5_6_1	\N	2020-11-05 15:49:20.25442
 \.
 
 
@@ -8265,7 +8680,6 @@ COPY public.sepa_export_message_ids (id, sepa_export_id, message_id) FROM stdin;
 --
 
 COPY public.shipto (trans_id, shiptoname, shiptodepartment_1, shiptodepartment_2, shiptostreet, shiptozipcode, shiptocity, shiptocountry, shiptocontact, shiptophone, shiptofax, shiptoemail, itime, mtime, module, shipto_id, shiptocp_gender, shiptogln) FROM stdin;
-2												2019-10-15 11:52:10.264198	\N	AR	415	m	
 \.
 
 
@@ -8329,15 +8743,15 @@ COPY public.stocktakings (id, inventory_id, warehouse_id, bin_id, parts_id, empl
 -- Data for Name: tax; Type: TABLE DATA; Schema: public; Owner: kivitendo
 --
 
-COPY public.tax (chart_id, rate, taxnumber, taxkey, taxdescription, itime, mtime, id, chart_categories, skonto_sales_chart_id, skonto_purchase_chart_id) FROM stdin;
-44	0.08000	2200	2	MWST	2019-10-15 11:37:00.716536	2019-10-15 11:37:09.909063	195	I	\N	\N
-45	0.02500	2201	3	MWST	2019-10-15 11:37:00.716536	2019-10-15 11:37:09.909063	196	I	\N	\N
-12	0.08000	1170	4	MWST Aufwand	2019-10-15 11:37:00.716536	2019-10-15 11:37:09.909063	197	E	\N	\N
-12	0.02500	1170	5	MWST Aufwand	2019-10-15 11:37:00.716536	2019-10-15 11:37:09.909063	198	E	\N	\N
-13	0.08000	1171	6	MWST Investitionen	2019-10-15 11:37:00.716536	2019-10-15 11:37:09.909063	199	E	\N	\N
-13	0.02500	1171	7	MWST Investitionen	2019-10-15 11:37:00.716536	2019-10-15 11:37:09.909063	200	E	\N	\N
-\N	0.00000	\N	0	Keine Steuer	2019-10-15 11:37:00.716536	2019-10-15 11:37:10.961228	0	ALQCIE	\N	\N
-\N	0.00000	\N	1	Mehrwertsteuerfrei	2019-10-15 11:37:00.716536	2019-10-15 11:37:10.961228	194	ALQCIE	\N	\N
+COPY public.tax (chart_id, rate, taxkey, taxdescription, itime, mtime, id, chart_categories, skonto_sales_chart_id, skonto_purchase_chart_id) FROM stdin;
+44	0.08000	2	MWST	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.140887	195	I	\N	\N
+45	0.02500	3	MWST	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.140887	196	I	\N	\N
+12	0.08000	4	MWST Aufwand	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.140887	197	E	\N	\N
+12	0.02500	5	MWST Aufwand	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.140887	198	E	\N	\N
+13	0.08000	6	MWST Investitionen	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.140887	199	E	\N	\N
+13	0.02500	7	MWST Investitionen	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.140887	200	E	\N	\N
+\N	0.00000	0	Keine Steuer	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.490957	0	ALQCIE	\N	\N
+\N	0.00000	1	Mehrwertsteuerfrei	2020-11-05 15:49:16.988454	2020-11-05 15:49:19.490957	194	ALQCIE	\N	\N
 \.
 
 
@@ -8557,10 +8971,10 @@ COPY public.taxkeys (id, chart_id, tax_id, taxkey_id, pos_ustva, startdate) FROM
 --
 
 COPY public.taxzone_charts (id, taxzone_id, buchungsgruppen_id, income_accno_id, expense_accno_id, itime) FROM stdin;
-2	1	192	74	92	2019-10-15 11:37:10.519589
-3	2	192	74	92	2019-10-15 11:37:10.519589
-4	3	192	74	92	2019-10-15 11:37:10.519589
-1	4	192	74	92	2019-10-15 11:37:10.519589
+2	1	192	74	92	2020-11-05 15:49:19.33191
+3	2	192	74	92	2020-11-05 15:49:19.33191
+4	3	192	74	92	2020-11-05 15:49:19.33191
+1	4	192	74	92	2020-11-05 15:49:19.33191
 \.
 
 
@@ -8569,7 +8983,6 @@ COPY public.taxzone_charts (id, taxzone_id, buchungsgruppen_id, income_accno_id,
 --
 
 COPY public.todo_user_config (employee_id, show_after_login, show_follow_ups, show_follow_ups_login, show_overdue_sales_quotations, show_overdue_sales_quotations_login, id) FROM stdin;
-409	t	t	t	t	t	1
 \.
 
 
@@ -8578,20 +8991,20 @@ COPY public.todo_user_config (employee_id, show_after_login, show_follow_ups, sh
 --
 
 COPY public.transfer_type (id, direction, description, sortkey, itime, mtime) FROM stdin;
-395	in	stock	1	2019-10-15 11:37:02.370155	\N
-396	in	found	2	2019-10-15 11:37:02.370155	\N
-397	in	correction	3	2019-10-15 11:37:02.370155	\N
-398	out	used	4	2019-10-15 11:37:02.370155	\N
-399	out	disposed	5	2019-10-15 11:37:02.370155	\N
-400	out	back	6	2019-10-15 11:37:02.370155	\N
-401	out	missing	7	2019-10-15 11:37:02.370155	\N
-402	out	correction	9	2019-10-15 11:37:02.370155	\N
-403	transfer	transfer	10	2019-10-15 11:37:02.370155	\N
-404	transfer	correction	11	2019-10-15 11:37:02.370155	\N
-405	out	shipped	12	2019-10-15 11:37:02.708607	\N
-406	in	stocktaking	13	2019-10-15 11:37:02.71607	\N
-407	out	stocktaking	14	2019-10-15 11:37:02.71607	\N
-408	in	assembled	15	2019-10-15 11:37:11.887013	\N
+395	in	stock	1	2020-11-05 15:49:17.471805	\N
+396	in	found	2	2020-11-05 15:49:17.471805	\N
+397	in	correction	3	2020-11-05 15:49:17.471805	\N
+398	out	used	4	2020-11-05 15:49:17.471805	\N
+399	out	disposed	5	2020-11-05 15:49:17.471805	\N
+400	out	back	6	2020-11-05 15:49:17.471805	\N
+401	out	missing	7	2020-11-05 15:49:17.471805	\N
+402	out	correction	9	2020-11-05 15:49:17.471805	\N
+403	transfer	transfer	10	2020-11-05 15:49:17.471805	\N
+404	transfer	correction	11	2020-11-05 15:49:17.471805	\N
+405	out	shipped	12	2020-11-05 15:49:17.557954	\N
+406	in	stocktaking	13	2020-11-05 15:49:17.56057	\N
+407	out	stocktaking	14	2020-11-05 15:49:17.56057	\N
+408	in	assembled	15	2020-11-05 15:49:19.690901	\N
 \.
 
 
@@ -8649,7 +9062,6 @@ COPY public.user_preferences (id, login, namespace, version, key, value) FROM st
 1	#default#	DisplayableName	0.00000	SL::DB::Customer	<%customernumber%> <%name%>
 2	#default#	DisplayableName	0.00000	SL::DB::Vendor	<%vendornumber%> <%name%>
 3	#default#	DisplayableName	0.00000	SL::DB::Part	<%partnumber%> <%description%>
-4	cem	PositionsScrollbar	0.00000	height	25
 \.
 
 
@@ -8657,7 +9069,8 @@ COPY public.user_preferences (id, login, namespace, version, key, value) FROM st
 -- Data for Name: vendor; Type: TABLE DATA; Schema: public; Owner: kivitendo
 --
 
-COPY public.vendor (id, name, department_1, department_2, street, zipcode, city, country, contact, phone, fax, homepage, email, notes, taxincluded, vendornumber, cc, bcc, business_id, taxnumber, discount, creditlimit, account_number, bank_code, bank, language, itime, mtime, obsolete, username, user_password, salesman_id, v_customer_id, language_id, payment_id, taxzone_id, greeting, ustid, iban, bic, direct_debit, depositor, delivery_term_id, currency_id, gln) FROM stdin;
+COPY public.vendor (id, name, department_1, department_2, street, zipcode, city, country, contact, phone, fax, homepage, email, notes, taxincluded, vendornumber, cc, bcc, business_id, taxnumber, discount, creditlimit, account_number, bank_code, bank, language, itime, mtime, obsolete, username, user_password, salesman_id, v_customer_id, language_id, payment_id, taxzone_id, greeting, ustid, iban, bic, direct_debit, depositor, delivery_term_id, currency_id, gln, natural_person) FROM stdin;
+413	Delivery Services Comp.			Thirdstreed 10	1000	Duckhousen	Disneyland					contact@dsd.com		\N	l1			\N		0	0.00000				\N	2020-11-05 15:56:41.184021	2020-11-05 15:56:46.55886	f			\N		\N	\N	4					f		\N	1		f
 \.
 
 
@@ -8666,6 +9079,7 @@ COPY public.vendor (id, name, department_1, department_2, street, zipcode, city,
 --
 
 COPY public.warehouse (id, description, itime, mtime, sortkey, invalid) FROM stdin;
+423	warehouse 1	2020-11-05 16:02:43.742531	2020-11-05 16:02:43.742531	1	f
 \.
 
 
@@ -8764,7 +9178,7 @@ COPY tax.report_variables (id, "position", heading_id, description, taxbase, dec
 -- Name: acc_trans_id_seq; Type: SEQUENCE SET; Schema: public; Owner: kivitendo
 --
 
-SELECT pg_catalog.setval('public.acc_trans_id_seq', 5, true);
+SELECT pg_catalog.setval('public.acc_trans_id_seq', 2, true);
 
 
 --
@@ -8800,6 +9214,20 @@ SELECT pg_catalog.setval('public.bank_transaction_acc_trans_id_seq', 1, false);
 --
 
 SELECT pg_catalog.setval('public.bank_transactions_id_seq', 1, false);
+
+
+--
+-- Name: contact_departments_id_seq; Type: SEQUENCE SET; Schema: public; Owner: kivitendo
+--
+
+SELECT pg_catalog.setval('public.contact_departments_id_seq', 1, false);
+
+
+--
+-- Name: contact_titles_id_seq; Type: SEQUENCE SET; Schema: public; Owner: kivitendo
+--
+
+SELECT pg_catalog.setval('public.contact_titles_id_seq', 1, false);
 
 
 --
@@ -8960,21 +9388,28 @@ SELECT pg_catalog.setval('public.generic_translations_id_seq', 1, false);
 -- Name: glid; Type: SEQUENCE SET; Schema: public; Owner: kivitendo
 --
 
-SELECT pg_catalog.setval('public.glid', 2, true);
+SELECT pg_catalog.setval('public.glid', 1, true);
+
+
+--
+-- Name: greetings_id_seq; Type: SEQUENCE SET; Schema: public; Owner: kivitendo
+--
+
+SELECT pg_catalog.setval('public.greetings_id_seq', 1, false);
 
 
 --
 -- Name: id; Type: SEQUENCE SET; Schema: public; Owner: kivitendo
 --
 
-SELECT pg_catalog.setval('public.id', 416, true);
+SELECT pg_catalog.setval('public.id', 674, true);
 
 
 --
 -- Name: inventory_id_seq; Type: SEQUENCE SET; Schema: public; Owner: kivitendo
 --
 
-SELECT pg_catalog.setval('public.inventory_id_seq', 1, false);
+SELECT pg_catalog.setval('public.inventory_id_seq', 1, true);
 
 
 --
@@ -9002,7 +9437,7 @@ SELECT pg_catalog.setval('public.note_id', 1, false);
 -- Name: orderitemsid; Type: SEQUENCE SET; Schema: public; Owner: kivitendo
 --
 
-SELECT pg_catalog.setval('public.orderitemsid', 1, false);
+SELECT pg_catalog.setval('public.orderitemsid', 2, true);
 
 
 --
@@ -9023,7 +9458,7 @@ SELECT pg_catalog.setval('public.part_customer_prices_id_seq', 1, false);
 -- Name: parts_price_history_id_seq; Type: SEQUENCE SET; Schema: public; Owner: kivitendo
 --
 
-SELECT pg_catalog.setval('public.parts_price_history_id_seq', 1, true);
+SELECT pg_catalog.setval('public.parts_price_history_id_seq', 2, true);
 
 
 --
@@ -9093,7 +9528,7 @@ SELECT pg_catalog.setval('public.project_types_id_seq', 3, true);
 -- Name: record_links_id_seq; Type: SEQUENCE SET; Schema: public; Owner: kivitendo
 --
 
-SELECT pg_catalog.setval('public.record_links_id_seq', 1, false);
+SELECT pg_catalog.setval('public.record_links_id_seq', 2, true);
 
 
 --
@@ -9268,7 +9703,7 @@ SELECT pg_catalog.setval('public.taxzone_charts_id_seq', 4, true);
 -- Name: todo_user_config_id_seq; Type: SEQUENCE SET; Schema: public; Owner: kivitendo
 --
 
-SELECT pg_catalog.setval('public.todo_user_config_id_seq', 1, true);
+SELECT pg_catalog.setval('public.todo_user_config_id_seq', 1, false);
 
 
 --
@@ -9303,7 +9738,7 @@ SELECT pg_catalog.setval('public.units_language_id_seq', 1, false);
 -- Name: user_preferences_id_seq; Type: SEQUENCE SET; Schema: public; Owner: kivitendo
 --
 
-SELECT pg_catalog.setval('public.user_preferences_id_seq', 4, true);
+SELECT pg_catalog.setval('public.user_preferences_id_seq', 3, true);
 
 
 --
@@ -9424,6 +9859,38 @@ ALTER TABLE ONLY public.bank_accounts
 
 ALTER TABLE ONLY public.chart
     ADD CONSTRAINT chart_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: contact_departments contact_departments_description_key; Type: CONSTRAINT; Schema: public; Owner: kivitendo
+--
+
+ALTER TABLE ONLY public.contact_departments
+    ADD CONSTRAINT contact_departments_description_key UNIQUE (description);
+
+
+--
+-- Name: contact_departments contact_departments_pkey; Type: CONSTRAINT; Schema: public; Owner: kivitendo
+--
+
+ALTER TABLE ONLY public.contact_departments
+    ADD CONSTRAINT contact_departments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: contact_titles contact_titles_description_key; Type: CONSTRAINT; Schema: public; Owner: kivitendo
+--
+
+ALTER TABLE ONLY public.contact_titles
+    ADD CONSTRAINT contact_titles_description_key UNIQUE (description);
+
+
+--
+-- Name: contact_titles contact_titles_pkey; Type: CONSTRAINT; Schema: public; Owner: kivitendo
+--
+
+ALTER TABLE ONLY public.contact_titles
+    ADD CONSTRAINT contact_titles_pkey PRIMARY KEY (id);
 
 
 --
@@ -9728,6 +10195,22 @@ ALTER TABLE ONLY public.generic_translations
 
 ALTER TABLE ONLY public.gl
     ADD CONSTRAINT gl_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: greetings greetings_description_key; Type: CONSTRAINT; Schema: public; Owner: kivitendo
+--
+
+ALTER TABLE ONLY public.greetings
+    ADD CONSTRAINT greetings_description_key UNIQUE (description);
+
+
+--
+-- Name: greetings greetings_pkey; Type: CONSTRAINT; Schema: public; Owner: kivitendo
+--
+
+ALTER TABLE ONLY public.greetings
+    ADD CONSTRAINT greetings_pkey PRIMARY KEY (id);
 
 
 --
@@ -10872,6 +11355,20 @@ CREATE INDEX idx_record_links_to_table ON public.record_links USING btree (to_ta
 
 
 --
+-- Name: inventory_itime_parts_id_idx; Type: INDEX; Schema: public; Owner: kivitendo
+--
+
+CREATE INDEX inventory_itime_parts_id_idx ON public.inventory USING btree (itime, parts_id);
+
+
+--
+-- Name: inventory_parts_id_idx; Type: INDEX; Schema: public; Owner: kivitendo
+--
+
+CREATE INDEX inventory_parts_id_idx ON public.inventory USING btree (parts_id);
+
+
+--
 -- Name: invoice_description_gin_trgm_idx; Type: INDEX; Schema: public; Owner: kivitendo
 --
 
@@ -11775,6 +12272,13 @@ CREATE TRIGGER project_delete_custom_variables_after_deletion AFTER DELETE ON pu
 
 
 --
+-- Name: shipto shipto_delete_custom_variables_after_deletion; Type: TRIGGER; Schema: public; Owner: kivitendo
+--
+
+CREATE TRIGGER shipto_delete_custom_variables_after_deletion AFTER DELETE ON public.shipto FOR EACH ROW EXECUTE PROCEDURE public.delete_custom_variables_trigger();
+
+
+--
 -- Name: assembly trig_assembly_purchase_price; Type: TRIGGER; Schema: public; Owner: kivitendo
 --
 
@@ -12338,11 +12842,35 @@ ALTER TABLE ONLY public.defaults
 
 
 --
+-- Name: defaults defaults_carry_over_account_chart_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: kivitendo
+--
+
+ALTER TABLE ONLY public.defaults
+    ADD CONSTRAINT defaults_carry_over_account_chart_id_fkey FOREIGN KEY (carry_over_account_chart_id) REFERENCES public.chart(id);
+
+
+--
 -- Name: defaults defaults_currency_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: kivitendo
 --
 
 ALTER TABLE ONLY public.defaults
     ADD CONSTRAINT defaults_currency_id_fkey FOREIGN KEY (currency_id) REFERENCES public.currencies(id);
+
+
+--
+-- Name: defaults defaults_loss_carried_forward_chart_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: kivitendo
+--
+
+ALTER TABLE ONLY public.defaults
+    ADD CONSTRAINT defaults_loss_carried_forward_chart_id_fkey FOREIGN KEY (loss_carried_forward_chart_id) REFERENCES public.chart(id);
+
+
+--
+-- Name: defaults defaults_profit_carried_forward_chart_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: kivitendo
+--
+
+ALTER TABLE ONLY public.defaults
+    ADD CONSTRAINT defaults_profit_carried_forward_chart_id_fkey FOREIGN KEY (profit_carried_forward_chart_id) REFERENCES public.chart(id);
 
 
 --

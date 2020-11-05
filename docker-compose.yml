@@ -2,8 +2,6 @@ version: '3'
 services:
   web:
     build: ./web
-    image: kivi
-    container_name: kivi
     depends_on:
       - "db"
     ports:
@@ -13,17 +11,15 @@ services:
     restart: unless-stopped
   db:
     build: ./db
-    image: pgsql-kivi
-    container_name: pgsql-kivi
-    restart: unless-stopped
     environment:
       - "POSTGRES_USER=kivitendo"
       - "POSTGRES_PASSWORD=mypass123"
+    restart: unless-stopped
   pgadmin:
     image: dpage/pgadmin4
-    restart: unless-stopped
     ports:
       - "50111:80"
     environment:
       - "PGADMIN_DEFAULT_EMAIL=user@example.com"
       - "PGADMIN_DEFAULT_PASSWORD=1234"
+    restart: unless-stopped
