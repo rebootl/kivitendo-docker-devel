@@ -17,9 +17,16 @@ RUN apt update && apt upgrade -y && apt -y install apache2 \
   libdatetime-set-perl libset-infinite-perl liblist-utilsby-perl \
   libdaemon-generic-perl libfile-flock-perl libfile-slurp-perl \
   libfile-mimeinfo-perl libpbkdf2-tiny-perl libregexp-ipv6-perl \
-  libdatetime-event-cron-perl libexception-class-perl
+  libdatetime-event-cron-perl libexception-class-perl libcam-pdf-perl
 # git postgresql
 # postgresql-contrib (needed?)
+
+# tex environment
+RUN apt -y install texlive-base-bin texlive-latex-recommended texlive-fonts-recommended \
+  texlive-latex-extra texlive-lang-german texlive-generic-extra texlive-xetex ghostscript
+
+# libreoffice environment
+# ..
 
 RUN a2enmod fcgid
 RUN mkdir -p /var/lock/apache2 /var/run/apache2
