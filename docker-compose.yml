@@ -5,7 +5,7 @@ services:
     depends_on:
       - "db"
     ports:
-      - "50110:80"
+      - "127.0.0.1:50110:80"
     volumes:
       - "./web/kivitendo-erp:/var/www/kivitendo-erp"
     restart: unless-stopped
@@ -18,7 +18,7 @@ services:
   pgadmin:
     image: dpage/pgadmin4
     ports:
-      - "50111:80"
+      - "127.0.0.1:50111:80"
     environment:
       - "PGADMIN_DEFAULT_EMAIL=user@example.com"
       - "PGADMIN_DEFAULT_PASSWORD=1234"
