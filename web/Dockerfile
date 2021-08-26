@@ -17,7 +17,8 @@ RUN apt update && apt upgrade -y && apt -y install apache2 \
   libdatetime-set-perl libset-infinite-perl liblist-utilsby-perl \
   libdaemon-generic-perl libfile-flock-perl libfile-slurp-perl \
   libfile-mimeinfo-perl libpbkdf2-tiny-perl libregexp-ipv6-perl \
-  libdatetime-event-cron-perl libexception-class-perl libcam-pdf-perl
+  libdatetime-event-cron-perl libexception-class-perl libcam-pdf-perl \
+  libmath-round-perl
 # git postgresql
 # postgresql-contrib (needed?)
 
