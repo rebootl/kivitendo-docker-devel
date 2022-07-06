@@ -18,13 +18,16 @@ RUN apt update && apt upgrade -y && apt -y install apache2 \
   libdaemon-generic-perl libfile-flock-perl libfile-slurp-perl \
   libfile-mimeinfo-perl libpbkdf2-tiny-perl libregexp-ipv6-perl \
   libdatetime-event-cron-perl libexception-class-perl libcam-pdf-perl \
-  libmath-round-perl
+  libmath-round-perl libimager-perl libimager-qrcode-perl
 # git postgresql
 # postgresql-contrib (needed?)
 
 # tex environment
 RUN apt -y install texlive-base-bin texlive-latex-recommended texlive-fonts-recommended \
   texlive-latex-extra texlive-lang-german texlive-generic-extra texlive-xetex ghostscript
+
+# doc build environment
+RUN apt -y install ant openjdk-11-jre
 
 # libreoffice environment
 # ..
