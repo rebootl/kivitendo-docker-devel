@@ -1,5 +1,5 @@
 #
-FROM debian:buster
+FROM debian:bullseye
 
 RUN apt update && apt upgrade -y && apt -y install apache2 \
   libarchive-zip-perl libclone-perl \
@@ -24,7 +24,7 @@ RUN apt update && apt upgrade -y && apt -y install apache2 \
 
 # tex environment
 RUN apt -y install texlive-base-bin texlive-latex-recommended texlive-fonts-recommended \
-  texlive-latex-extra texlive-lang-german texlive-generic-extra texlive-xetex ghostscript
+  texlive-latex-extra texlive-lang-german ghostscript
 
 # doc build environment
 RUN apt -y install ant openjdk-11-jre
@@ -32,6 +32,11 @@ RUN apt -y install ant openjdk-11-jre
 # libreoffice environment
 # ..
 
+# test environment
+RUN apt -y install libtest-deep-perl libtest-exception-perl libtest-output-perl libwww-perl \
+  liburi-find-perl libsys-cpu-perl libthread-pool-simple-perl
+
+#
 RUN a2enmod fcgid
 RUN mkdir -p /var/lock/apache2 /var/run/apache2
 

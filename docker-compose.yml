@@ -9,6 +9,8 @@ services:
     volumes:
       - "./web/kivitendo-erp:/var/www/kivitendo-erp"
     restart: unless-stopped
+    environment:
+      - TZ=Europe/Zurich
   db:
     build: ./db
     environment:
@@ -22,4 +24,12 @@ services:
     environment:
       - "PGADMIN_DEFAULT_EMAIL=user@example.com"
       - "PGADMIN_DEFAULT_PASSWORD=1234"
+      - TZ=Europe/Zurich
     restart: unless-stopped
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 127.0.0.1:50212:8080
+    environment:
+      - TZ=Europe/Zurich
