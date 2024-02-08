@@ -17,19 +17,19 @@ services:
       - "POSTGRES_USER=kivitendo"
       - "POSTGRES_PASSWORD=mypass123"
     restart: unless-stopped
-  pgadmin:
-    image: dpage/pgadmin4
-    ports:
-      - "127.0.0.1:50111:80"
-    environment:
-      - "PGADMIN_DEFAULT_EMAIL=user@example.com"
-      - "PGADMIN_DEFAULT_PASSWORD=1234"
-      - TZ=Europe/Zurich
-    restart: unless-stopped
+  # pgadmin:
+  #   image: dpage/pgadmin4
+  #   ports:
+  #     - "127.0.0.1:50111:80"
+  #   environment:
+  #     - "PGADMIN_DEFAULT_EMAIL=user@example.com"
+  #     - "PGADMIN_DEFAULT_PASSWORD=1234"
+  #     - TZ=Europe/Zurich
+  #   restart: unless-stopped
   adminer:
     image: adminer
     restart: always
     ports:
-      - 127.0.0.1:50212:8080
+      - 127.0.0.1:50112:8080
     environment:
       - TZ=Europe/Zurich
