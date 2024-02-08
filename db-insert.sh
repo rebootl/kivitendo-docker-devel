@@ -8,8 +8,8 @@
 DB="$1"
 DBUSER="kivitendo"
 
-docker cp "$DB".sql "docker-dev-kivi-kompo-db-1:/docker-entrypoint-initdb.d/"
-docker restart docker-dev-kivi-kompo-db-1
+docker cp "$DB".sql "docker-dev-kivi-db-1:/docker-entrypoint-initdb.d/"
+docker restart docker-dev-kivi-db-1
 sleep 5
-docker exec docker-dev-kivi-kompo-db-1 bash -c "dropdb -U ${DBUSER} --if-exists ${DB}"
-docker exec docker-dev-kivi-kompo-db-1 bash -c "psql -U ${DBUSER} < /docker-entrypoint-initdb.d/${DB}.sql"
+docker exec docker-dev-kivi-db-1 bash -c "dropdb -U ${DBUSER} --if-exists ${DB}"
+docker exec docker-dev-kivi-db-1 bash -c "psql -U ${DBUSER} < /docker-entrypoint-initdb.d/${DB}.sql"
