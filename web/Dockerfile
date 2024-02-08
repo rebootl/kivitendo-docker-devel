@@ -1,26 +1,29 @@
 #
-FROM debian:bullseye
+FROM debian:bookworm
 
 RUN apt update && apt upgrade -y && apt -y install apache2 \
   libarchive-zip-perl libclone-perl \
   libconfig-std-perl libdatetime-perl libdbd-pg-perl libdbi-perl \
-  libemail-address-perl  libemail-mime-perl libfcgi-perl libjson-perl \
+  libemail-address-perl libemail-mime-perl libfcgi-perl libjson-perl \
   liblist-moreutils-perl libnet-smtp-ssl-perl libnet-sslglue-perl \
   libparams-validate-perl libpdf-api2-perl librose-db-object-perl \
   librose-db-perl librose-object-perl libsort-naturally-perl \
   libstring-shellquote-perl libtemplate-perl libtext-csv-xs-perl \
   libtext-iconv-perl liburi-perl libxml-writer-perl libyaml-perl \
   libimage-info-perl libgd-gd2-perl libapache2-mod-fcgid \
-  libfile-copy-recursive-perl libalgorithm-checkdigits-perl \
-  libcrypt-pbkdf2-perl libcgi-pm-perl libtext-unidecode-perl libwww-perl \
-  aqbanking-tools poppler-utils libhtml-restrict-perl \
+  libfile-copy-recursive-perl postgresql libalgorithm-checkdigits-perl \
+  libcrypt-pbkdf2-perl git libcgi-pm-perl libtext-unidecode-perl libwww-perl \
+  postgresql-contrib poppler-utils libhtml-restrict-perl \
   libdatetime-set-perl libset-infinite-perl liblist-utilsby-perl \
   libdaemon-generic-perl libfile-flock-perl libfile-slurp-perl \
   libfile-mimeinfo-perl libpbkdf2-tiny-perl libregexp-ipv6-perl \
   libdatetime-event-cron-perl libexception-class-perl libcam-pdf-perl \
-  libmath-round-perl libimager-perl libimager-qrcode-perl
-# git postgresql
-# postgresql-contrib (needed?)
+  libxml-libxml-perl libtry-tiny-perl libmath-round-perl \
+  libimager-perl libimager-qrcode-perl librest-client-perl libipc-run-perl \
+  libencode-imaputf7-perl libmail-imapclient-perl
+
+# additional packages
+RUN apt -y install postgresql-contrib poppler-utils
 
 # tex environment
 RUN apt -y install texlive-base-bin texlive-latex-recommended texlive-fonts-recommended \
