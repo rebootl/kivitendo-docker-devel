@@ -1,2 +1,6 @@
 web/kivitendo-erp/
 
+db/docker-entrypoint-initdb.d/*.sh
+
+*.sql
+*.gz
