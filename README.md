@@ -1,10 +1,11 @@
 __Warning: This is intended for development on a local machine or a dedicated development server.
 Do not use it in production as is. Use at your own risk.__
 
-This contains the necessary setup and config files to create a docker environment including apache web server
-and postgres database. Additionally the environment uses adminer for database administration and contains some helper scripts.
+This contains the necessary setup and config files to create a docker environment to run Kivitendo.
+The environment includes an apache web server and a postgres database as well as adminer for database administration
+and some helper scripts.
 
-It does not however contain kivitendo itself. Kivitendo has to be set up separatelyas follows.
+It does not however contain Kivitendo itself. Kivitendo has to be set up separately as follows.
 
 ## Kivitendo setup
 
@@ -12,8 +13,7 @@ It does not however contain kivitendo itself. Kivitendo has to be set up separat
     $ git clone https://github.com/kivitendo/kivitendo-erp.git
 
 The entrypoint script creates the webdav directory.
-Additionally it chowns the user to www-data and sets the group to rw
-on first container startup.
+Additionally it chowns the user to www-data and sets the group to rw on first container startup.
 
 At minimum it is required to create the `kivitendo-erp/config/kivitendo.conf` by copying it from the example.
 And to adapt the database server, user and password to match to values set in `docker-compose.yml`.
