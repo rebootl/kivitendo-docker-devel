@@ -29,8 +29,8 @@ RUN apt -y install postgresql-contrib poppler-utils
 RUN apt -y install texlive-base-bin texlive-latex-recommended texlive-fonts-recommended \
   texlive-latex-extra texlive-lang-german ghostscript
 
-# doc build environment
-RUN apt -y install ant openjdk-11-jre
+# doc build environment (untested version)
+# RUN apt -y install ant openjdk-17-jre
 
 # libreoffice environment
 # ..
