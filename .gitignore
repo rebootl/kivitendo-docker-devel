@@ -4,3 +4,5 @@ db/docker-entrypoint-initdb.d/*.sh
 
 *.sql
 *.gz
+
+get-db.sh
