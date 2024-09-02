@@ -33,3 +33,9 @@ services:
       - 127.0.0.1:50112:8080
     environment:
       - TZ=Europe/Zurich
+
+  kivi-mail:
+    image: sj26/mailcatcher
+    restart: always
+    ports:
+      - 127.0.0.1:2025:1080

@@ -20,7 +20,7 @@ RUN apt update && apt upgrade -y && apt -y install apache2 \
   libdatetime-event-cron-perl libexception-class-perl libcam-pdf-perl \
   libxml-libxml-perl libtry-tiny-perl libmath-round-perl \
   libimager-perl libimager-qrcode-perl librest-client-perl libipc-run-perl \
-  libencode-imaputf7-perl libmail-imapclient-perl
+  libencode-imaputf7-perl libmail-imapclient-perl libuuid-tiny-perl
 
 # additional packages
 RUN apt -y install postgresql-contrib poppler-utils
