@@ -1,5 +1,5 @@
 #
-FROM debian:bookworm
+FROM debian:trixie
 
 RUN apt update && apt upgrade -y && apt -y install apache2 \
   libarchive-zip-perl libclone-perl \
@@ -37,7 +37,10 @@ RUN apt -y install texlive-base-bin texlive-latex-recommended texlive-fonts-reco
 
 # test environment
 RUN apt -y install libtest-deep-perl libtest-exception-perl libtest-output-perl libwww-perl \
-  liburi-find-perl libsys-cpu-perl libthread-pool-simple-perl
+  liburi-find-perl libsys-cpu-perl libthread-pool-simple-perl libhttp-dav-perl
+
+RUN apt -y install cpanminus
+RUN cpanm HTML::Query
 
 #
 RUN a2enmod fcgid
