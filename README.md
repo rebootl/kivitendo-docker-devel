@@ -1,4 +1,4 @@
-__IMPORTANT NOTICE: There is an updated version of this at: [codeberg.org/rebootl/kivitendo-docker](https://codeberg.org/rebootl/kivitendo-docker)__
+__IMPORTANT NOTICE: There is an updated version of this at: [rebootl/kivitendo-docker](https://github.com/rebootl/kivitendo-docker)__
 
 ___
 
